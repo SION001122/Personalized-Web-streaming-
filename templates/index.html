@@ -7,13 +7,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Player</title>
     <link rel="stylesheet" href="/static/index.css">
-    <script>
-        let audioFiles = {{ audio_files|tojson|safe }}; // JSON 형식으로 audio_files 가져옴
-        let currentIndex = 0; // 현재 트랙 인덱스
-        let audioContext; // 오디오 컨텍스트
-        let analyser; // 오디오 분석기
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            position: relative;
+            flex-direction: column;
+            align-items: center;
+        }
 
-        // 배열을 섞는 함수
+        .content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: #333;
+            color: white;
+            border-left: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 10px;
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: bold;
+            visibility: visible;
+            transition: visibility 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .sidebar.hidden {
+            visibility: hidden;
+            opacity: 0;
+        }
+
+        .track-item {
+            cursor: pointer;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .track-item:hover {
+            background-color: #e9e9e9;
+        }
+
+        .track-item.active {
+            background-color: #d3e0ff;
+            font-weight: bold;
+        }
+
+        /* 플레이어 버튼 */
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+        /* 사이드바를 숨기거나 보이게 할 버튼을 고정 위치로 설정 */
+        .sidebar-toggle-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 10;
+        }
+    </style>
+    <script>
+        let audioFiles = {{ audio_files|tojson|safe }};
+        let currentIndex = 0;
+        let isPlaying = false;
+        let audioElement = null;
+
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -21,19 +108,16 @@
             }
         }
 
-        shuffleArray(audioFiles); // audioFiles 배열 섞기
+        shuffleArray(audioFiles);
 
-        // 트랙 정보 업데이트
         function updateTrackInfo() {
-            const audioElement = document.getElementById('audio-player');
             const titleElement = document.getElementById('track-title');
             const coverElement = document.getElementById('album-cover');
             const currentTrack = audioFiles[currentIndex];
             const originalPath = currentTrack.path.replace(/\\/g, '/').split('/').pop();
-            const trackName = originalPath.replace(/\.[^/.]+$/, ""); // 확장자 제거
+            const trackName = originalPath.replace(/\.[^/.]+$/, "");
 
             titleElement.textContent = trackName;
-
             const selectedEffects = getSelectedEffects();
             const encodedFilename = encodeURIComponent(originalPath);
 
@@ -46,133 +130,115 @@
             };
 
             audioElement.load();
-
-            // Android 메서드 호출 - 오디오 전송
-            if (window.Android) {
-                window.Android.updateTrackInfo(trackName, coverElement.src);
-                window.Android.transferAudioData(originalPath);
-
-                // 재생이 끝나면 Android 메서드를 호출하여 다음 곡으로 넘기기
-                document.getElementById('audio-player').addEventListener('ended', function() {
-                    currentIndex = (currentIndex + 1) % audioFiles.length; // 순환하여 다음 곡으로 이동
-                    updateTrackInfo();
-                    window.Android.updateTrackInfo(trackName, coverElement.src);
-                    window.Android.transferAudioData(originalPath);
-                    playAudio();
-            });
-        }
+            highlightCurrentTrack();
         }
 
-        // 선택된 효과 가져오기
         function getSelectedEffects() {
-            const effects = [];
-            document.querySelectorAll('input[name="effects"]:checked').forEach((checkbox) => {
-                effects.push(checkbox.value);
-            });
-            return effects.join(',');
+            return '';
         }
 
-        // 다음 트랙
         function nextTrack() {
-            currentIndex++;
-            if (currentIndex >= audioFiles.length) {
-                currentIndex = 0;
-            }
+            currentIndex = (currentIndex + 1) % audioFiles.length;
             updateTrackInfo();
-            const audioElement = document.getElementById('audio-player');
-            audioElement.currentTime = 0;
-
-            audioElement.play().catch(error => {
-                console.log("Playback failed due to user interaction requirements. Error: ", error);
-            });
+            playAudio();
         }
 
-        // 이전 트랙
         function previousTrack() {
-            currentIndex--;
-            if (currentIndex < 0) {
-                currentIndex = audioFiles.length - 1;
+            currentIndex = (currentIndex - 1 + audioFiles.length) % audioFiles.length;
+            updateTrackInfo();
+            playAudio();
+        }
+
+        function playSelectedTrack(index) {
+            currentIndex = index;
+            updateTrackInfo();
+            playAudio();
+        }
+
+        function highlightCurrentTrack() {
+            const trackItems = document.querySelectorAll('.track-item');
+            trackItems.forEach((item, index) => {
+                item.classList.toggle('active', index === currentIndex);
+            });
+        }
+
+        function togglePlayPause() {
+            if (isPlaying) {
+                audioElement.pause();
+            } else {
+                audioElement.play().catch(console.error);
             }
-            updateTrackInfo();
-            const audioElement = document.getElementById('audio-player');
-            audioElement.currentTime = 0;
-
-            audioElement.play().catch(error => {
-                console.log("Playback failed due to user interaction requirements. Error: ", error);
-            });
+            isPlaying = !isPlaying;
+            updatePlayPauseButton();
         }
 
-        function setTrack(index) {
-            currentIndex = index
-            updateTrackInfo();
-            const audioElement = document.getElementById('audio-player');
-            audioElement.currentTime = 0;
-
-            audioElement.play().catch(error => {
-                console.log("Playback failed due to user interaction requirements. Error: ", error);
-            });
+        function updatePlayPauseButton() {
+            const playPauseButton = document.getElementById('play-pause-btn');
+            playPauseButton.textContent = isPlaying ? 'Pause' : 'Play';
         }
 
-        window.onload = function() {
-            const audioElement = document.getElementById('audio-player');
-            setTrack(0);
+        function playAudio() {
+            if (!audioElement) return;
+            audioElement.play().catch(console.error);
+            isPlaying = true;
+            updatePlayPauseButton();
+        }
 
-            audioElement.addEventListener('stalled', () => {
-                console.log("Audio playback stalled, moving to next track after 3 seconds.");
-                setTimeout(() => {
-                    nextTrack();
-                }, 3000);
-            });
+        window.onload = function () {
+            audioElement = document.getElementById('audio-player');
 
-            audioElement.addEventListener('playing', () => {
-                console.log("Audio playback resumed.");
-            });
+            audioElement.addEventListener('ended', nextTrack);
 
-            audioElement.addEventListener('ended', () => {
-                nextTrack();
-            });
-
-            const sidebar = document.querySelector(".sidebar-content");
-            audioFiles.forEach((audio, i) => {
-                const div = document.createElement('div');
-                div.onclick = () => {
-                    setTrack(i);
-                }
-                div.textContent = audio.name;
-                div.className = "sidebar-track";
-                sidebar.appendChild(div);
-            })
+            updateTrackInfo();
+            generateTrackList();
         };
+
+        function generateTrackList() {
+            const trackList = document.getElementById('track-list');
+            trackList.innerHTML = '';
+            audioFiles.forEach((file, index) => {
+                const originalPath = file.path.replace(/\\/g, '/').split('/').pop();
+                const trackName = originalPath.replace(/\.[^/.]+$/, "");
+                const trackItem = document.createElement('div');
+                trackItem.classList.add('track-item');
+                trackItem.textContent = trackName;
+                trackItem.onclick = () => playSelectedTrack(index);
+                trackList.appendChild(trackItem);
+            });
+            highlightCurrentTrack();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('hidden');
+        }
     </script>
 </head>
 
 <body>
-    <div class="title"><h1>Audio Player with Effects</h1></div>
-    <div class="main">
-        <div class="content">
-            <div class="player">
-                <h3 id="track-title"></h3>
-                <img id="album-cover" src="default_cover.png" alt="Album Cover" width="300" height="300" />
-                <div class="special-controls">
-                    <h4>Select Effects:</h4>
-                    <label><input type="checkbox" name="effects" value="echo"> Echo</label><br>
-                    <label><input type="checkbox" name="effects" value="reverb"> Reverb</label><br>
-                </div>
-                <audio id="audio-player" controls>
-                    <source id="audio-source" src="" type="audio/flac">
-                    Your browser does not support the audio element.
-                </audio>
+    <div class="content">
+        <div class="player">
+            <h3 id="track-title"></h3>
+            <img id="album-cover" src="default_cover.png" alt="Album Cover" width="300" height="300" />
+            <div class="player-controls">
+                <button onclick="previousTrack()">Prev</button>
+                <button id="play-pause-btn" onclick="togglePlayPause()">Play</button>
+                <button onclick="nextTrack()">Next</button>
             </div>
-        
-            <div class="buttons">
-                <button onclick="previousTrack()">Previous Track</button>
-                <button onclick="nextTrack()">Next Track</button>
-            </div>
+            <audio id="audio-player" controls>
+                <source id="audio-source" src="" type="audio/flac">
+                Your browser does not support the audio element.
+            </audio>
         </div>
-        <div class="sidebar">
-            <div class="sidebar-content">
-            </div>
-        </div>
+    </div>
+
+    <!-- 사이드바 토글 버튼 -->
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">Toggle Sidebar</button>
+
+    <!-- 사이드바 -->
+    <div class="sidebar">
+        <h3>Track List</h3>
+        <div id="track-list" style="margin-bottom: 50%;"></div>
     </div>
 </body>
 
