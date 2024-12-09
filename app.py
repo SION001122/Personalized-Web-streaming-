@@ -7,7 +7,7 @@ from mutagen import File
 from PIL import Image
 import io
 import copy
-import os
+import os 
 import urllib.parse
 from multiprocessing import Queue, Process
 import concurrent.futures
@@ -20,10 +20,13 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 current_users = 0
 user_lock = threading.Lock()
 
+audio_format = ["flac", "wav", "mp3", "aiff", "dsf", "dff"]
+
 # 사용자 데이터
 users = {
     "user": "12345"  # 사용자 이름과 비밀번호
 }
+
 
 # 차단된 사용자의 접속 시간을 저장하는 딕셔너리
 blocked_users = {}
@@ -51,29 +54,21 @@ def extract_audio_files(file_list_path):
         lines = file.readlines()
         for line in lines:
             line = line.strip()
-            if "*file*" in line:
-                file_path = line.split("*file*")[1]
-                absolute_file_path = os.path.abspath(file_path)
-                
-                # UTF-8로 인코딩된 경로를 사용하여 처리
-                encoded_path = absolute_file_path.encode('utf-8').decode('utf-8')
+            if "*file*" not in line:
+                continue
+            file_path = line.split("*file*")[1]
+            absolute_file_path = os.path.abspath(file_path)
 
-                # 다양한 확장자에 따른 처리
-                if encoded_path.endswith(".flac"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.flac' 제거
-                elif encoded_path.endswith(".wav"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.wav' 제거
-                elif encoded_path.endswith(".mp3"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.mp3' 제거
-                elif encoded_path.endswith(".aiff"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.aiff' 제거
-                elif encoded_path.endswith(".dsf") or encoded_path.endswith(".dff"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.dsf' 또는 '.dff' 제거
-                else:
-                    cleaned_file_name = os.path.basename(encoded_path)  # 다른 확장자 또는 확장자 없는 파일은 그대로 유지
-                
-                # 파일 정보를 추가
-                audio_files.append({"path": encoded_path, "name": cleaned_file_name})
+            # UTF-8로 인코딩된 경로를 사용하여 처리
+            encoded_path = absolute_file_path.encode('utf-8').decode('utf-8')
+
+            if encoded_path.endswith(audio_format):
+                encoded_path = encoded_path[:-len(audio_format)]
+
+            cleaned_file_name = os.path.basename(encoded_path)  # 다른 확장자 또는 확장자 없는 파일은 그대로 유지
+            
+            # 파일 정보를 추가
+            audio_files.append({"path": encoded_path, "name": cleaned_file_name})
     return audio_files
 
 
@@ -120,12 +115,7 @@ def extract_album_cover(file_path):
         elif hasattr(audio, "pictures") and len(audio.pictures) > 0:
             album_cover = audio.pictures[0].data
         else:
-            print("앨범 커버를 찾을 수 없습니다2.")
-            image = Image.open(r".\none.png")
-            image_byte_array = image.save(io.BytesIO(), format="PNG")
-            image.save(image_byte_array, format="PNG")
-            image_byte_array.seek(0)
-            return image_byte_array
+            return error_album_cover()
 
         image = Image.open(io.BytesIO(album_cover))
         image_byte_array = io.BytesIO()
@@ -141,7 +131,6 @@ def extract_album_cover(file_path):
 def error_album_cover():
     image = Image.open(r".\none.png")
     image_byte_array = image.save(io.BytesIO(), format="PNG")
-    image.save(image_byte_array, format="PNG")
     image_byte_array.seek(0)
     print("앨범 커버를 찾을 수 없습니다.")
     return image_byte_array
@@ -149,7 +138,7 @@ def error_album_cover():
 # 앨범 커버를 제공하는 라우트
 @app.route("/cover/<filename>")
 def get_album_cover(filename):
-    file_info = next((f for f in shuffled_audio_files if os.path.basename(f["path"]) == filename), None)
+    file_info = next((f for f in audio_files if os.path.basename(f["path"]) == filename), None)
     if file_info and os.path.exists(file_info["path"]):
         image = extract_album_cover(file_info["path"])
         if image:
@@ -342,20 +331,18 @@ def stream_audio(filename):
             # 파일 확장자 추출
             file_extension = os.path.splitext(file_path)[1].lower()
             # 확장자에 따른 FFmpeg 명령어 설정
+            command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac']
             if file_extension == '.aiff':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
+                command += [ '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
             elif file_extension in ['.dsf', '.dff']:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-ar', '352800', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
-            elif file_extension == '.wav':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
-            elif file_extension == '.flac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
+                command += ['-ar', '352800', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
+            elif file_extension in ['.wav', '.flac']:
+                command += ['-c:a', 'flac', '-threads', '4']
             elif file_extension == '.mp3':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's16', '-threads', '4']
-                        # 음장 효과 필터가 있을 경우 명령어에 필터 추가
+                command += ['-c:a', 'flac', '-sample_fmt', 's16', '-threads', '4']
             else:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
-            # 음장 효과 필터가 있을 경우 명령어에 필터 추가
+                command += ['-c:a', 'flac', '-threads', '4']
+
             if filter_string:
                 command.extend(['-af', filter_string])
 
@@ -415,8 +402,6 @@ def get_duration(filename):
     # 길이를 JSON 형식으로 반환
     return jsonify({"filename": filename, "duration": file_duration})
 
-
-    return "File not found", 404
 app.config['SESSION_COOKIE_SECURE'] = False # HTTPS에서만 세션 쿠키 전송
 app.config['SESSION_COOKIE_HTTPONLY'] = True # JavaScript에서 세션 쿠키 접근 불가
 #이렇게 설정하면 세션 쿠키가 HTTPS 프로토콜을 사용하는 경우에만 전송되며, JavaScript를 통해 세션 쿠키에 접근할 수 없습니다.
