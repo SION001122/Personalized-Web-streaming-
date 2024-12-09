@@ -121,26 +121,28 @@
 
 <body>
     <div class="title"><h1>Audio Player</h1></div>
-    <div class="content">
-        <div class="player">
-            <h3 id="track-title"></h3>
-            <img id="album-cover" src="default_cover.png" alt="Album Cover" width="300" height="300" />
-            <div class="special-controls">
-                <h4>Select Effects:</h4>
-                <label><input type="checkbox" name="effects" value="echo"> Echo</label><br>
-                <audio id="audio-player" controls>
-                    <source id="audio-source" src="" type="audio/flac">
-                    Your browser does not support the audio element.
-                </audio>
+    <div class="main">
+        <div class="content">
+            <div class="player">
+                <h3 id="track-title"></h3>
+                <img id="album-cover" src="default_cover.png" alt="Album Cover" width="300" height="300" />
+                <div class="special-controls">
+                    <h4>Select Effects:</h4>
+                    <label><input type="checkbox" name="effects" value="echo"> Echo</label><br>
+                    <audio id="audio-player" controls>
+                        <source id="audio-source" src="" type="audio/flac">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            
+                <div class="buttons">
+                    <button onclick="previousTrack()">Previous Track</button>
+                    <button onclick="nextTrack()">Next Track</button>
+                </div>
             </div>
-        
-            <div class="buttons">
-                <button onclick="previousTrack()">Previous Track</button>
-                <button onclick="nextTrack()">Next Track</button>
-            </div>
-        </div>
-        <div class="sidebar">
-            <div class="sidebar-content">
+            <div class="sidebar">
+                <div class="sidebar-content">
+                </div>
             </div>
         </div>
     </div>
