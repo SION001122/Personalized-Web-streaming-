@@ -9,14 +9,26 @@
     <link rel="stylesheet" href="/static/index.css">
     <script>
         let audioFiles = {{ audio_files|tojson|safe }}; // JSON 형식으로 audio_files 가져옴
-        let currentIndex = 0; // 현재 트랙 인덱스
+        let currIdx = 0; // 현재 트랙 인덱스
+
+        Object.defineProperty(currIdx, 'currIdx', {
+            get: function () {
+                return currIdx;
+            },
+            set: function (value) {
+                if (value >= audioFiles.length) {
+                    value = 0;
+                }else if (value < 0) {
+                    value = audioFiles.length - 1;
+                }
+                currIdx = value;
+                updateTrackInfo();
+            }
+        });
 
         // 배열을 섞는 함수
         function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
+            array.sort(() => Math.random() - 0.5);
         }
 
         shuffleArray(audioFiles); // audioFiles 배열 섞기
@@ -24,18 +36,23 @@
         // 트랙 정보 업데이트
         function updateTrackInfo() {
             const audioElement = document.getElementById('audio-player');
-            const titleElement = document.getElementById('track-title');
-            const coverElement = document.getElementById('album-cover');
-            const currentTrack = audioFiles[currentIndex];
+            const currentTrack = audioFiles[currIdx];
             const originalPath = currentTrack.path.replace(/\\/g, '/').split('/').pop();
             const trackName = originalPath.replace(/\.[^/.]+$/, ""); // 확장자 제거
 
-            titleElement.textContent = trackName;
-
+            
             const selectedEffects = getSelectedEffects();
             const encodedFilename = encodeURIComponent(originalPath);
 
             audioElement.src = `/audio/${encodedFilename}?effects=${selectedEffects}`;
+
+            // title 업데이트
+            const titleElement = document.getElementById('track-title');
+            titleElement.textContent = trackName;
+
+            // cover 이미지 업데이트
+            const coverElement = document.getElementById('album-cover');
+
             coverElement.src = `/cover/${encodedFilename}`;
 
             coverElement.onerror = () => {
@@ -64,26 +81,17 @@
 
         // 다음 트랙
         function nextTrack() {
-            currentIndex++;
-            if (currentIndex >= audioFiles.length) {
-                currentIndex = 0; // 처음으로 돌아가기
-            }
-            updateTrackInfo();
+            currIdx++;
         }
 
         // 이전 트랙
         function previousTrack() {
-            currentIndex--;
-            if (currentIndex < 0) {
-                currentIndex = audioFiles.length - 1;
-            }
-            updateTrackInfo();
+            currIdx--;
         }
 
         // 특정 트랙 설정
         function setTrack(index) {
-            currentIndex = index;
-            updateTrackInfo();
+            currIdx = index;
         }
 
         window.onload = function () {
@@ -116,6 +124,7 @@
                 sidebar.appendChild(div); // 슬라이더바에 추가
             });
         };
+        
     </script>
 </head>
 
