@@ -316,7 +316,7 @@ def stream_audio(filename):
                 manage_process_list()
 
         return Response(generate(), mimetype="audio/flac")
-
+#앨범 단위로 분리
 @app.route("/albums_list", methods=["GET"])
 def albums_list():
         album_json = json_album_list(file_list_path)
