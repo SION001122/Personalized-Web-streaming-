@@ -1,3 +1,3 @@
 @echo off
-python app(comment_kr).py
+python app.py
 pause
