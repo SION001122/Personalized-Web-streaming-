@@ -13,6 +13,9 @@ from multiprocessing import Queue, Process
 import concurrent.futures
 import sys
 import argparse
+from album import json_album_list
+import json
+from unit import extract_audio_files, get_audio_duration, extract_album_cover
 app = Flask(__name__)
 app.secret_key = "qwyueyqwhuidhuwi@#&(*&!&@#*(HNCDLKJNCLK:SS!@#(*&(*!%*!@))))"  # 세션을 사용하기 위한 비밀 키 설정
 # 스레드 풀 생성 (최대 10개의 스레드 사용)
@@ -20,6 +23,9 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 # 현재 접속자 수를 추적하기 위한 변수와 락 설정
 current_users = 0
 user_lock = threading.Lock()
+
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # 사용자 데이터
 users = {
@@ -37,54 +43,15 @@ last_ping_time = {}
 # 청크 크기 설정
 CHUNK_SIZE = 512# 64KB 단위로 데이터를 전송
 
-def is_safe_path(base_path, user_path):
-    """
-    주어진 경로가 허용된 디렉토리 내부에 있는지 확인합니다.
-    """
-    abs_base = os.path.abspath(base_path)
-    abs_path = os.path.abspath(os.path.join(base_path, user_path))
-    return abs_path.startswith(abs_base)
-
-# 오디오 파일 목록을 추출하는 함수
-def extract_audio_files(file_list_path):
-    audio_files = []
-    with open(file_list_path, "r", encoding="utf-8") as file:
-        lines = file.readlines()
-        for line in lines:
-            line = line.strip()
-            if "*file*" in line:
-                file_path = line.split("*file*")[1]
-                absolute_file_path = os.path.abspath(file_path)
-                
-                # UTF-8로 인코딩된 경로를 사용하여 처리
-                encoded_path = absolute_file_path.encode('utf-8').decode('utf-8')
-
-                # 다양한 확장자에 따른 처리
-                if encoded_path.endswith(".flac"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.flac' 제거
-                elif encoded_path.endswith(".wav"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.wav' 제거
-                elif encoded_path.endswith(".mp3"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.mp3' 제거
-                elif encoded_path.endswith(".aiff"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.aiff' 제거
-                elif encoded_path.endswith(".dsf") or encoded_path.endswith(".dff"):
-                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.dsf' 또는 '.dff' 제거
-                else:
-                    cleaned_file_name = os.path.basename(encoded_path)  # 다른 확장자 또는 확장자 없는 파일은 그대로 유지
-                
-                # 파일 정보를 추가
-                audio_files.append({"path": encoded_path, "name": cleaned_file_name})
-    return audio_files
-
-
-
 # os.path.abspath 함수로 경로를 OS에 맞게 수정
-file_list_path = os.path.abspath("./audio_file_list.txt");
+file_list_path = os.path.abspath("./audio_file_list.txt")
 audio_files = extract_audio_files(file_list_path)
 # 서버에서 재생 목록을 랜덤하게 섞음
 shuffled_audio_files = copy.deepcopy(audio_files)
 random.shuffle(shuffled_audio_files)
+
+# Heartbeat를 위한 마지막 핑 시간을 저장하는 딕셔너리
+last_ping_time = {}
 
 # Heartbeat 기능을 구현하여 주기적으로 클라이언트 연결 상태를 확인
 def heartbeat_checker():
@@ -96,6 +63,8 @@ def heartbeat_checker():
                     print(f"Client {user} disconnected due to inactivity")
                     del last_ping_time[user]
         threading.Event().wait(20)  # 20초마다 체크
+        
+        
 # Heartbeat 엔드포인트
 @app.route("/ping", methods=["POST"])
 def ping():
@@ -105,38 +74,6 @@ def ping():
             last_ping_time[username] = time.time()
         return jsonify({"status": "alive"}), 200
     return jsonify({"status": "unauthorized"}), 401
-
-# 앨범 커버 추출 함수
-def extract_album_cover(file_path):
-    try:
-        audio = File(file_path)
-        if audio is None:
-            print(f"지원되지 않는 파일 형식: {file_path}")
-            return None
-        
-        if "APIC:" in audio.tags:
-            album_cover = audio.tags["APIC:"].data
-        elif "covr" in audio:
-            album_cover = audio["covr"][0]
-        elif hasattr(audio, "pictures") and len(audio.pictures) > 0:
-            album_cover = audio.pictures[0].data
-        else:
-            print("앨범 커버를 찾을 수 없습니다2.")
-            image = Image.open(r".\none.png")
-            image_byte_array = image.save(io.BytesIO(), format="PNG")
-            image.save(image_byte_array, format="PNG")
-            image_byte_array.seek(0)
-            return image_byte_array
-
-        image = Image.open(io.BytesIO(album_cover))
-        image_byte_array = io.BytesIO()
-        image.save(image_byte_array, format="PNG")
-        image_byte_array.seek(0)
-        return image_byte_array
-
-    except Exception as e:
-        print(f"앨범 커버를 추출할 수 없습니다: {e}")
-    return None 
 
 @app.route("/public/none")
 def error_album_cover():
@@ -221,10 +158,6 @@ def logout():
 # 오디오 스트리밍
 # 현재 실행 중인 ffmpeg 프로세스를 추적하기 위한 전역 변수
 current_process = None
-
-import threading
-import time
-
 max_processes = sys.maxsize # 최대 실행 가능한 프로세스 수
 process_list = []  # 프로세스 목록: [(process, last_access_time)]
 
@@ -282,18 +215,6 @@ def terminate_inactive_processes_with_duration():
                         print(f"프로세스 {proc.pid} 종료 중 오류 발생: {e}")
             time.sleep(0.5)  # 0.5초마다 반복
 
-
-def get_audio_duration(file_path):
-    """
-    주어진 음원 파일의 재생 시간을 초 단위로 반환.
-    """
-    try:
-        audio = File(file_path)
-        if audio and audio.info:
-            return audio.info.length
-    except Exception as e:
-        print(f"오류 발생: {e}")
-    return audio.info.length
 
 # 오디오 재생 시간 엔드포인트 추가
 @app.route("/audio/duration", methods=["POST"])
@@ -396,6 +317,10 @@ def stream_audio(filename):
 
         return Response(generate(), mimetype="audio/flac")
 
+@app.route("/albums_list", methods=["GET"])
+def albums_list():
+        album_json = json_album_list(file_list_path)
+        return jsonify(json.loads(album_json))  # JSON 형식으로 반환
 
 @app.route("/audio/duration/<filename>", methods=["GET"])
 def get_duration(filename):
@@ -415,6 +340,7 @@ def get_duration(filename):
 
     # 길이를 JSON 형식으로 반환
     return jsonify({"filename": filename, "duration": file_duration})
+
 
 
     return "File not found", 404
