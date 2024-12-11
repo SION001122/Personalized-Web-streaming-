@@ -1,0 +1,4 @@
+orjson
+fastapi
+uvicorn[standard]
+sqlmodel
