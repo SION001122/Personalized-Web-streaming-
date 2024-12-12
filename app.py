@@ -362,6 +362,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--debug", action='store_true', help = "Debug Mode")
 
 args = parser.parse_args()
+
+initindex = 0
+init_lock = threading.Lock()
+
 def initialize():
     global initindex
     with init_lock:
