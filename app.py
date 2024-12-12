@@ -53,6 +53,11 @@ random.shuffle(shuffled_audio_files)
 # Heartbeat를 위한 마지막 핑 시간을 저장하는 딕셔너리
 last_ping_time = {}
 
+output_json_path = 'albums_list.json'
+@app.before_request
+def initialize_on_start():
+    save_json_to_file(file_list_path, output_json_path)
+
 # Heartbeat 기능을 구현하여 주기적으로 클라이언트 연결 상태를 확인
 def heartbeat_checker():
     while True:
@@ -316,11 +321,15 @@ def stream_audio(filename):
                 manage_process_list()
 
         return Response(generate(), mimetype="audio/flac")
-#앨범 단위로 분리
 @app.route("/albums_list", methods=["GET"])
 def albums_list():
-        album_json = json_album_list(file_list_path)
-        return jsonify(json.loads(album_json))  # JSON 형식으로 반환
+    # albums_list.json 파일을 읽어서 반환
+    try:
+        with open(output_json_path, 'r', encoding='utf-8') as json_file:
+            album_json = json.load(json_file)  # JSON 파일 읽기
+        return jsonify(album_json)  # JSON 형식으로 반환
+    except FileNotFoundError:
+        return jsonify({"error": "Albums list not found"}), 404 #에러시 404 표시
 
 @app.route("/audio/duration/<filename>", methods=["GET"])
 def get_duration(filename):
