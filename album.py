@@ -2,15 +2,16 @@ from unit import extract_audio_files
 from mutagen import File
 import os
 import json
+
 def audio_list(file_path):
-        absolute_file_path = []
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                if "*file*" in line:
-                    file_path = line.split("*file*")[1]
-                    file_path = file_path.strip()
-                    absolute_file_path.append(os.path.abspath(file_path))
-        return absolute_file_path
+    absolute_file_path = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if "*file*" in line:
+                file_path = line.split("*file*")[1]
+                file_path = file_path.strip()
+                absolute_file_path.append(os.path.abspath(file_path))
+    return absolute_file_path
 
 def audio_album(file_path):
     audio_album_list = []
@@ -18,8 +19,8 @@ def audio_album(file_path):
         try:
             audio = File(line)
             if 'TALB' in audio.tags:
-               audio_album_list.append(audio.tags['TALB'].text[0])
-               continue
+                audio_album_list.append(audio.tags['TALB'].text[0])
+                continue
             if 'ALBUM' in audio:
                 audio_album_list.append(audio.tags['ALBUM'][0])
                 continue
@@ -29,7 +30,6 @@ def audio_album(file_path):
             if 'IARL' in audio:
                 audio_album_list.append(audio.tags['IARL'][0])
                 continue
-            
         except:
             audio_album_list.append("Unknown")
             continue
@@ -48,12 +48,23 @@ def album_list(file_list_path):
     return merged_album_dict
 
 def json_album_list(file_list_path):
-        album_json = album_list(file_list_path)
-        print("DEBUG: album_list output =", album_json)
+    album_json = album_list(file_list_path)
+    print("DEBUG: album_list output =", album_json)
 
-        converted_album_json = {
-            album: [{'name': song[0], 'path': song[1]} for song in songs]
-            for album, songs in album_json.items()
-        }
-        # UTF-8로 강제 설정
-        return json.dumps(converted_album_json, ensure_ascii=False, indent=4).encode('utf-8').decode('utf-8')
+    converted_album_json = {
+        album: [{'name': song[0], 'path': song[1]} for song in songs]
+        for album, songs in album_json.items()
+    }
+    
+    # UTF-8로 강제 설정
+    return json.dumps(converted_album_json, ensure_ascii=False, indent=4).encode('utf-8').decode('utf-8')
+
+def save_json_to_file(file_list_path, output_json_path):
+    # json_album_list로 변환된 JSON 데이터를 파일로 저장
+    album_json = json_album_list(file_list_path)
+    
+    # JSON 데이터를 파일로 저장
+    with open(output_json_path, 'w', encoding='utf-8') as json_file:
+        json_file.write(album_json)
+
+    print(f"JSON 파일이 {output_json_path}에 저장되었습니다.")
