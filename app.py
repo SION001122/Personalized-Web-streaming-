@@ -54,9 +54,6 @@ random.shuffle(shuffled_audio_files)
 last_ping_time = {}
 
 output_json_path = 'albums_list.json'
-@app.before_request
-def initialize_on_start():
-    save_json_to_file(file_list_path, output_json_path)
 
 # Heartbeat 기능을 구현하여 주기적으로 클라이언트 연결 상태를 확인
 def heartbeat_checker():
@@ -365,8 +362,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--debug", action='store_true', help = "Debug Mode")
 
 args = parser.parse_args()
-
+initindex = 0
 if __name__ == "__main__":
     heartbeat_thread = threading.Thread(target=heartbeat_checker)
     heartbeat_thread.start()
+    if(initindex == 0):
+        save_json_to_file(file_list_path, output_json_path)
+        initindex = 1
     app.run(host="0.0.0.0", debug=args.debug, threaded=True, port=8000)
