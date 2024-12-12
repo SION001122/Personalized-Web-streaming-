@@ -13,7 +13,7 @@ from multiprocessing import Queue, Process
 import concurrent.futures
 import sys
 import argparse
-from album import json_album_list
+from album import json_album_list, save_json_to_file #빼먹은 코드 추가함.
 import json
 from unit import extract_audio_files, get_audio_duration, extract_album_cover
 app = Flask(__name__)
