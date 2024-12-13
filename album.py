@@ -55,17 +55,25 @@ def album_list(file_list_path):
     return merged_album_dict # 앨범 정보를 반환
 
 
-def json_album_list(file_list_path): # JSON 형식으로 변환
-    album_json = album_list(file_list_path) # 앨범 정보를 가져옵니다
-    print("DEBUG: album_list output =", album_json) # 디버깅을 위한 출력
+def json_album_list(file_list_path):
+        album_json = album_list(file_list_path)  # 앨범 정보를 가져옵니다
+        print("DEBUG: album_list output =", album_json)  # 디버깅을 위한 출력
 
-    converted_album_json = {
-        album: [{'name': song[0], 'path': song[1]} for song in songs] # JSON 형식으로 변환
-        for album, songs in album_json.items() # 앨범 정보를 가져옵니다
-    }
-    
-    # UTF-8로 강제 설정
-    return json.dumps(converted_album_json, ensure_ascii=False, indent=4).encode('utf-8').decode('utf-8') # JSON 데이터를 반환
+        converted_album_json = {}
+        idx = 1  # 전역 인덱스 변수 초기화
+
+        for album, songs in album_json.items(): # 앨범 정보를 가져옵니다
+            converted_album_json[album] = [] # 앨범 정보를 키로 하는 빈 리스트를 만듭니다   
+            for song in songs:
+                converted_album_json[album].append({
+                    'index': idx,           # 전역 인덱스 할당
+                    'name': song[0],   # 트랙 이름
+                    'path': song[1]    # 트랙 경로
+                })
+                idx += 1  # 인덱스 증가
+
+        # UTF-8로 강제 설정
+        return json.dumps(converted_album_json, ensure_ascii=False, indent=4).encode('utf-8').decode('utf-8')  # JSON 데이터를 반환
 
 def save_json_to_file(file_list_path, output_json_path):
     # json_album_list로 변환된 JSON 데이터를 파일로 저장
