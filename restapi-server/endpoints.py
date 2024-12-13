@@ -12,6 +12,10 @@
 # TODO: 목차를 완성하세요.
 # TODO: sqlite3 데이터베이스의 데이터 아키텍처를 설계한 후, 할일 목록을 업데이트하세요.
 # =============================================================================
+# TITLE: 모듈 실행 방지
+# DESCRIPTION: 모듈을 커맨드 라인에서 실행하는것을 방지합니다.
+if __name__ == "__main__": raise RuntimeError("이 스크립트는 직접 실행할 수 없습니다.")
+# =============================================================================
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import ORJSONResponse

@@ -33,7 +33,8 @@ match argv[1]:
                 pass
             case _:
                 # 메모: 잘못된 인자가 입력되었을 때 종료합니다.
-                raise "사용법: python -m restapi-server run {--host [host]} {--port [port]}"
+                print("사용법: python -m restapi-server run {--host [host]} {--port [port]}")
+                exit(1)
                 
         uvicorn.run(server, host=host, port=port)
 
