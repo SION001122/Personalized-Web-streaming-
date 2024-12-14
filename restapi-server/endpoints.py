@@ -50,28 +50,31 @@ class MusicGeneralInfo(BaseModel):
 #
 # NOTE: 무분별한 크롤링을 방지하기 위해 GET 메서드를 지양하고 POST 메서드를 권장합니다.
 #
-## INFO: 음원 정보 조회 엔드포인트
 
-@apis["v1"].post("/music/{id}/info", response_model=MusicGeneralInfo, tags=["music", "info"])
-async def music_info_query(id: int) -> dict[str, any]:
-    """
-    ## QUERY: 데이터베이스에서 기본적인 음원정보를 가져옵니다.
-    
-    ### Request
-    - path-parameter
-        - `id`: 음원 ID
-    
-    ### Response
-    
-    - status
-        - `200`: MusicGeneralInfo
-        - `404`: HTTPException{"요청하신 음원을 찾을 수 없습니다."}
-        - `500`: HTTPException{"오류가 발생하여 요청을 처리할 수 없습니다."}
-    
-    """
-    
-    # TODO: #14 음원 정보를 가져오는 코드를 작성하세요.
-    pass
+
+## TITLE: 사용자 맞춤형 추천
+## DESCRIPTION: 사용자의 선호도에 따라 추천 서비스을 제공합니다.
+
+
+## TITLE: 쿼리 기능
+## DESCRIPTION: 인덱스 검색 및 오브젝트 목록 조회 기능을 제공합니다.
+
+
+## TITLE: 사용자 기능
+## DESCRIPTION: 사용자의 생성, 조회, 수정, 삭제을 처리합니다.
+
+
+## TITLE: 엘범 기능
+## DESCRIPTION: (공식/사용자 커스텀)엘범 오브젝트의 생성, 조회, 수정, 삭제 기능을 제공합니다.
+
+
+## TITLE: 아티스트 기능
+## DESCRIPTION: 아티스트 오브젝트의 생성, 조회, 수정, 삭제 기능을 제공합니다.
+
+
+## TITLE: 음악 기능
+## DESCRIPTION: 음악 오브젝트의 생성, 조회, 수정, 삭제 기능을 제공합니다.
+
 
 # =============================================================================
 # EOC: endpoints.py
