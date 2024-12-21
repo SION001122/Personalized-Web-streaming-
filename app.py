@@ -265,17 +265,22 @@ def stream_audio(filename):
             file_path = os.path.abspath(file_info["path"])
             # 파일 확장자 추출
             file_extension = os.path.splitext(file_path)[1].lower()
+            cpu_count = os.cpu_count()
+            threads = str(max(1, cpu_count // 2))  # 최소 1개의 쓰레드 보장
             # 확장자에 따른 FFmpeg 명령어 설정
             if file_extension == '.aiff':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', str(threads)]
             elif file_extension in ['.dsf', '.dff']:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-ar', '352800', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-ar', '352800', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', str(threads)]
             elif file_extension == '.wav':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
             elif file_extension == '.flac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
             elif file_extension == '.mp3':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's16', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's16', '-threads', str(threads)]
+                        # 음장 효과 필터가 있을 경우 명령어에 필터 추가
+            else:
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
                         # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             else:
                 command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
