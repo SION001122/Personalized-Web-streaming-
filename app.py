@@ -283,7 +283,7 @@ def stream_audio(filename):
                 command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
                         # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             else:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', '4']
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
             # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             if filter_string:
                 command.extend(['-af', filter_string])
