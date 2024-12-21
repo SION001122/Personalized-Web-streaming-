@@ -259,7 +259,6 @@ def stream_audio(filename):
     file_info = next((f for f in shuffled_audio_files if os.path.basename(f["path"]) == filename), None)
     if file_info and os.path.exists(file_info["path"]):
         print(f"Streaming file: {file_info['path']}")
-
         if not os.path.basename(file_info["path"]) == filename:
                 return "Invalid file request", 400
         # 파일의 길이 출력
@@ -288,14 +287,7 @@ def stream_audio(filename):
             if filter_string:
                 command.extend(['-af', filter_string])
 
-            # 파일 권한을 600으로 설정
-            try:
-                os.chmod(file_path, 0o600)
-            except PermissionError as e:
-                print(f"Permission error: {e}")
-            except FileNotFoundError as e:
-                print(f"File not found: {e}")
-
+            
             command.append('-')  # FFmpeg 출력 설정을 파이프로 처리
                 
             # FFmpeg 프로세스를 stdout으로 실행
