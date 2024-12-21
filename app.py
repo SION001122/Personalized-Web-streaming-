@@ -259,6 +259,9 @@ def stream_audio(filename):
     file_info = next((f for f in shuffled_audio_files if os.path.basename(f["path"]) == filename), None)
     if file_info and os.path.exists(file_info["path"]):
         print(f"Streaming file: {file_info['path']}")
+
+        if not os.path.basename(file_info["path"]) == filename:
+                return "Invalid file request", 400
         # 파일의 길이 출력
         print(f"File duration: {get_audio_duration(file_info['path'])} seconds")
         def generate():
@@ -281,10 +284,17 @@ def stream_audio(filename):
                         # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             else:
                 command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
-                        # 음장 효과 필터가 있을 경우 명령어에 필터 추가    
             # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             if filter_string:
                 command.extend(['-af', filter_string])
+
+            # 파일 권한을 600으로 설정
+            try:
+                os.chmod(file_path, 0o600)
+            except PermissionError as e:
+                print(f"Permission error: {e}")
+            except FileNotFoundError as e:
+                print(f"File not found: {e}")
 
             command.append('-')  # FFmpeg 출력 설정을 파이프로 처리
                 
@@ -321,7 +331,8 @@ def stream_audio(filename):
                 manage_process_list()
 
         return Response(generate(), mimetype="audio/flac")
-@app.route("/albums_list", methods=["GET"])
+
+
 def albums_list():
     # albums_list.json 파일을 읽어서 반환
     try:
