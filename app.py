@@ -270,7 +270,7 @@ def stream_audio(filename):
             cpu_count = os.cpu_count()
             threads = str(max(1, cpu_count // 2))  # 최소 1개의 쓰레드 보장
             # 확장자에 따른 FFmpeg 명령어 설정
-             if file_extension == '.aiff':
+            if file_extension == '.aiff':
                 #command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', str(threads)]
                 command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
             elif file_extension in ['.dsf', '.dff']:
