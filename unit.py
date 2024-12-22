@@ -14,7 +14,7 @@ def extract_audio_files(file_list_path):
             if "*file*" in line:
                 file_path = line.split("*file*")[1]
                 absolute_file_path = os.path.abspath(file_path)
-                
+
                 # UTF-8로 인코딩된 경로를 사용하여 처리
                 encoded_path = absolute_file_path.encode('utf-8').decode('utf-8')
 
@@ -29,11 +29,30 @@ def extract_audio_files(file_list_path):
                     cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.aiff' 제거
                 elif encoded_path.endswith(".dsf") or encoded_path.endswith(".dff"):
                     cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.dsf' 또는 '.dff' 제거
+                elif encoded_path.endswith(".aac"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.aac' 제거
+                elif encoded_path.endswith(".ogg"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.ogg' 제거
+                elif encoded_path.endswith(".opus"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-5]  # '.opus' 제거
+                elif encoded_path.endswith(".wma"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.wma' 제거
+                elif encoded_path.endswith(".ape"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.ape' 제거
+                elif encoded_path.endswith(".mpc"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.mpc' 제거
+                elif encoded_path.endswith(".m4a") or encoded_path.endswith(".m4b") or encoded_path.endswith(".m4r"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.m4a', '.m4b', '.m4r' 제거
+                elif encoded_path.endswith(".aa"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-3]  # '.aa' 제거
+                elif encoded_path.endswith(".aax"):
+                    cleaned_file_name = os.path.basename(encoded_path)[:-4]  # '.aax' 제거
                 else:
                     cleaned_file_name = os.path.basename(encoded_path)  # 다른 확장자 또는 확장자 없는 파일은 그대로 유지
-                
+
                 # 파일 정보를 추가
                 audio_files.append({"path": encoded_path, "name": cleaned_file_name})
+    
     return audio_files
 
 def is_safe_path(base_path, user_path):
