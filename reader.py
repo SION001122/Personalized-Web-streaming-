@@ -14,7 +14,7 @@ try:
 
     for index, filename in enumerate(files, start=1):
         file_path = os.path.join(audio_folder, filename)
-        if os.path.isfile(file_path) and os.path.splitext(file_path)[1].lower() in ['.aiff', '.wav', '.flac', '.mp3', '.dsf', '.aac', '.ogg', '.wma', '.alac', '.m4a', '.opus']:
+        if os.path.isfile(file_path) and os.path.splitext(file_path)[1].lower() in ['.aiff', '.wav', '.flac', '.mp3', '.dsf', '.aac', '.ogg', '.wma', '.alac', '.m4a', '.opus', 'alac']:
             formatted_line = f"{index}*file*{file_path}"
             lines.append(formatted_line)
     with open(output_file, 'w', encoding='utf-8') as f:
