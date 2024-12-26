@@ -20,14 +20,34 @@ if __name__ == "__main__": raise RuntimeError("이 스크립트는 직접 실행
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
+from sqlmodel import create_engine, Session, select, SQLModel
+from pathlib import Path
+import dbmodel as DA
+from sqlalchemy.exc import NoResultFound, IntegrityError
 # =============================================================================
 # TITLE: 버전별 API 라우터 정의
 
 apis: dict[str, APIRouter] = { # 버전별 API 라우터 객체 [버전, API 라우터 인스턴스]
     "v1": APIRouter(
-        default_response_class=ORJSONResponse
+        default_response_class=ORJSONResponse,
     ),
 }
+# =============================================================================
+# db 조작 및 관리 클래스
+class Database:
+    path: Path = Path.home() / ".pws-restapi-server"
+    name: str = "main_v1.db"
+    def __init__(self):
+        self.engine = self.create_engine()
+    def new_session(self):
+        return Session(self.engine)
+    def create_engine(self):
+        path = self.path / self.name
+        if not path.exists():
+            path.mkdir()
+        return create_engine(f"sqlite:///{path}")
+
+db = Database()
 # =============================================================================
 # TITLE: 응답 모델 정의
 # DESCRIPTION: API 엔드포인트에서 반환하는 응답 모델을 정의합니다.
@@ -414,8 +434,15 @@ async def artist_remove_query(id: str) -> dict[str, object]:
 ## TITLE: 음악 기능
 ## DESCRIPTION: 음악 오브젝트의 생성, 조회, 수정, 삭제 기능을 제공합니다.
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-@apis["v1"].post("/music/{id}/define", response_model=None, tags=["music", "define", "create"])
-async def music_define_query(id: str) -> dict[str, object]:
+
+class MusicDefineBody(BaseModel):
+    title: str
+    album_id: str | None = None
+    length: int | None = None
+
+
+@apis["v1"].post("/music/{id}/define", status_code=201, tags=["music", "define", "create"])
+async def music_define_query(id: str, body: MusicDefineBody) -> dict[str, object]:
     """
     ## CREATE: 음악 오브젝트를 생성합니다.
     
@@ -432,10 +459,15 @@ async def music_define_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
     
     """
-    pass
+    try:
+        with db.new_session() as session:
+            session.add(DA.MusicTable(music_id=id, album_id=body.album_id, title=body.title, length=body.length))
+            session.commit()
+    except IntegrityError:
+        raise HTTPException(status_code=410, detail="요청하신 음악은 이미 존재하는 음악입니다.")
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-@apis["v1"].post("/music/{id}/info", response_model=MusicGeneralInfo, tags=["music", "info", "read"])
-async def music_info_query(id: str) -> dict[str, object]:
+@apis["v1"].post("/music/{id}/info", tags=["music", "info", "read"])
+async def music_info_query(id: str):
     """
     ## READ: 데이터베이스에서 기본적인 음원정보를 조회합니다.
     
@@ -452,10 +484,15 @@ async def music_info_query(id: str) -> dict[str, object]:
     
     """
     # TODO: 음악 정보를 가져오는 코드를 작성하세요.
-    pass
+    with db.new_session() as session:
+        try:
+            music = session.exec(select(DA.MusicTable).where(DA.MusicTable.music_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 음악이 존재하지 않습니다.")
+        return music
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 @apis["v1"].post("/music/{id}/modify", response_model=None, tags=["music", "modify", "update"])
-async def music_modify_query(id: str) -> dict[str, object]:
+async def music_modify_query(id: str, body: MusicDefineBody) -> dict[str, object]:
     """
     ## UPDATE: 음악 오브젝트를 수정합니다.
     
@@ -463,11 +500,9 @@ async def music_modify_query(id: str) -> dict[str, object]:
     - `path parameter`
         - `id`: 음악 ID
     - `body`
-        - `id`: 변경될 음악 ID, 선택사항입니다.
         - `title`: 변경될 음악 제목, 선택사항입니다.
-        - `hls_endpoint`: 변경될 음악 HLS 엔드포인트, 선택사항입니다.
-        - `artist`: 변경될 아티스트 정보, 선택사항입니다.
-        - `album`: 변경될 앨범 정보, 선택사항입니다.
+        - `album_id`: 변경될 앨범 아이디 정보, 선택사항입니다.
+        - `length`: 변경될 음악 길이 정보, 선택사항입니다.
         
     ### Response
     
@@ -479,9 +514,21 @@ async def music_modify_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
         
     """
-    pass
+    with db.new_session() as session:
+        try:
+            music = session.exec(select(DA.MusicTable).where(DA.MusicTable.music_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 음악이 존재하지 않습니다.")
+        if body.title != None:
+            music.title = body.title
+        if body.album_id != None:
+            music.album_id = body.album_id
+        if body.length != None:
+            music.length = body.length
+        session.add(music)
+        session.commit()
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-@apis["v1"].post("/music/{id}/remove", tags=["music", "remove", "delete"])
+@apis["v1"].post("/music/{id}/remove", status_code=201, tags=["music", "remove", "delete"])
 async def music_remove_query(id: str) -> dict[str, object]:
     """
     ## DELETE: 음악 오브젝트를 삭제합니다.
@@ -500,7 +547,13 @@ async def music_remove_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
     
     """
-    pass
+    with db.new_session() as session:
+        try:
+            music = session.exec(select(DA.MusicTable).where(DA.MusicTable.music_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 음악이 존재하지 않습니다.")
+        session.delete(music)
+        session.commit()
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 # =============================================================================
 # EOC: endpoints.py
