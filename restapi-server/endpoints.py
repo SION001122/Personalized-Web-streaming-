@@ -121,8 +121,16 @@ async def query_search() -> dict[str, object]:
 ## TITLE: 엘범 기능
 ## DESCRIPTION: (공식/사용자 커스텀)엘범 오브젝트의 생성, 조회, 수정, 삭제 기능을 제공합니다.
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-@apis["v1"].post("/album/{id}/define", response_model=None, tags=["album", "define", "create"])
-async def album_define_query(id: str) -> dict[str, object]:
+
+class AlbumDefineBody(BaseModel):
+    released_at: int | None = None
+    title: str | None = None
+    length: int | None = None
+    artist_name: str | None = None
+    cover_block_key: str | None = None
+
+@apis["v1"].post("/album/{id}/define", status_code=201, tags=["album", "define", "create"])
+async def album_define_query(id: str, body: AlbumDefineBody):
     """
     ## CREATE: 앨범 오브젝트를 생성합니다.
     
@@ -139,10 +147,15 @@ async def album_define_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
     
     """
-    pass
+    with db.new_session() as session:
+        try:
+            session.add(DA.AlbumTable(album_id=id, released_at=body.released_at, title=body.title, artist_name=body.artist_name, cover_block_key=body.cover_block_key))
+            session.commit()
+        except IntegrityError:
+            raise HTTPException(status_code=410, detail="요청하신 앨범은 이미 존재하는 앨범입니다.")
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-@apis["v1"].post("/album/{id}/info", response_model=AlbumSimpleInfo, tags=["album", "info", "read"])
-async def album_info_query(id: str) -> dict[str, object]:
+@apis["v1"].post("/album/{id}/info", tags=["album", "info", "read"])
+async def album_info_query(id: str):
     """
     ## READ: 데이터베이스에서 기본적인 앨범 정보를 조회합니다.
     
@@ -158,10 +171,15 @@ async def album_info_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
     
     """
-    pass
+    with db.new_session() as session:
+        try:
+            album = session.exec(select(DA.AlbumTable).where(DA.AlbumTable.album_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 앨범이 존재하지 않습니다.")
+        return album
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 @apis["v1"].post("/album/{id}/modify", response_model=None, tags=["album", "modify", "update"])
-async def album_modify_query(id: str) -> dict[str, object]:
+async def album_modify_query(id: str, body: AlbumDefineBody):
     """
     ## UPDATE: 앨범 오브젝트를 수정합니다.
     
@@ -183,10 +201,26 @@ async def album_modify_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
         
     """
-    pass
+    with db.new_session() as session:
+        try:
+            album = session.exec(select(DA.AlbumTable).where(DA.AlbumTable.album_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 앨범이 존재하지 않습니다.")
+        if body.released_at != None:
+            album.released_at = body.released_at
+        if body.title != None:
+            album.title = body.title
+        if body.length != None:
+            album.length = body.length
+        if body.artist_name != None:
+            album.artist_name = body.artist_name
+        if body.cover_block_key != None:
+            album.cover_block_key = body.cover_block_key
+        session.add(album)
+        session.commit()
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 @apis["v1"].post("/album/{id}/remove", tags=["album", "remove", "delete"])
-async def album_remove_query(id: str) -> dict[str, object]:
+async def album_remove_query(id: str, body: AlbumDefineBody):
     """
     ## DELETE: 앨범 오브젝트를 삭제합니다.
     
@@ -204,7 +238,13 @@ async def album_remove_query(id: str) -> dict[str, object]:
         - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
         
     """
-    pass
+    with db.new_session() as session:
+        try:
+            album = session.exec(select(DA.AlbumTable).where(DA.AlbumTable.album_id == id)).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="요청하신 앨범이 존재하지 않습니다.")
+        session.delete(album)
+        session.commit()
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 ## =============================================================================
 ## TITLE: 음악 기능
