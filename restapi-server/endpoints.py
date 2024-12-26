@@ -18,8 +18,8 @@
 if __name__ == "__main__": raise RuntimeError("이 스크립트는 직접 실행할 수 없습니다.")
 # =============================================================================
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi.responses import ORJSONResponse, FileResponse
 from sqlmodel import create_engine, Session, select, SQLModel
 from pathlib import Path
 import dbmodel as DA
@@ -371,6 +371,78 @@ async def music_remove_query(id: str) -> dict[str, object]:
         session.delete(music)
         session.commit()
 ## ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+@apis["v1"].get("/partition/{id}/read", tags=["partition", "read"], response_class=FileResponse)
+async def partition_read_query(id: str):
+    """
+    ## READ: 디스크에서 파티션 파일을 읽습니다.
+    
+    ### Request
+    - `path parameter`
+        - `id`: 파티션 ID
+        
+    ### Response
+    
+    - `body`: 파일 데이터
+    
+    """
+    path = Path.home() / ".pws-restapi-server" / "partitions" / id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="요청하신 파티션이 존재하지 않습니다.")
+    return FileResponse(path)
+
+@apis["v1"].post("/partition/{id}/write", tags=["partition", "write"], response_model=None)
+async def partition_write_query(id: str, file: UploadFile):
+    """
+    ## WRITE: 디스크에 파티션 파일을 쓰기합니다.
+    
+    ### Request
+    - `path parameter`
+        - `id`: 파티션 ID
+    - `body`
+        - `file`: 파티션 파일
+        
+    ### Response
+    
+    - `status code` 상태 설명
+        - `201`: Message{"요청하신 파티션을 생성했습니다."}
+        - `400`: HTTPException{"잘못된 요청입니다."}
+        - `410`: HTTPException{"요청하신 파티션을 생성할 수 없습니다."}
+        - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
+    
+    """
+    media_type = "application/octet-stream"
+    path = Path.home() / ".pws-restapi-server" / "partitions" / id
+    if path.exists():
+        raise HTTPException(status_code=410, detail="요청하신 파티션이 이미 존재합니다.")
+    with path.open("wb") as f:
+        f.write(file.file.read())
+        f.close()
+
+@apis["v1"].post("/partition/{id}/remove", tags=["partition", "remove"], response_model=None)
+def partition_remove_query(id: str):
+    """
+    ## DELETE: 디스크에서 파티션 파일을 삭제합니다.
+    
+    ### Request
+    - `path parameter`
+        - `id`: 파티션 ID
+        
+    ### Response
+    
+    - `status code` 상태 설명
+        - `201`: Message{"요청하신 파티션을 삭제했습니다."}
+        - `400`: HTTPException{"잘못된 요청입니다."}
+        - `410`: HTTPException{"요청하신 파티션을 삭제할 수 없습니다."}
+        - `500`: HTTPException{"비정규 오류가 발생하여 요청을 처리하는데 실패했습니다."}
+    
+    """
+    path = Path.home() / ".pws-restapi-server" / "partitions" / id
+    if not path.exists():
+        raise HTTPException(status_code=410, detail="요청하신 파티션이 존재하지 않습니다.")
+    path.unlink()
+    
+
+
 # =============================================================================
 # EOC: endpoints.py
 # =============================================================================
