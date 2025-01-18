@@ -82,8 +82,8 @@ reader.py 를 실행하면 해당 디렉토리가 생성되고, 그 디렉토리
 
 [https://ffmpeg.org/](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
 
-여기서 다운로드 가능합니다.
-
+여기서 다운로드 가능합니다. 여기는 권장하는 파이썬 버전입니다.
+[python3.10](https://www.python.org/ftp/python/3.10.8/python-3.10.8-amd64.exe)
 윈도우 기준으로 기본 설치경로로 다운 및 설치가 완료 되었다면
 
 내 PC -> 오른쪽 마우스 클릭 -> 속성 -> 고급 시스템 설정 -> 고급 -> 환경 변수 -> 사용자 변수에서 path -> 편집 -> 새로 만들기 -> 설치 경로/bin을 입력 -> 확인 이 순서로 진행됩니다.
