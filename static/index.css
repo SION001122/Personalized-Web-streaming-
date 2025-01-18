@@ -43,6 +43,19 @@ button {
   }
 }
 
+input[type="text"] {
+  color: #ffffff;
+  background-color: #000000;
+  border: solid 1px #444444;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: #ffffff;
+}
+
 .title::before {
   content:"🎧";
   font-size: 28px;
@@ -141,6 +154,36 @@ button {
     flex: 1;
   }
 }
+.random-play {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center; /* 버튼을 가운데 정렬 */
+  align-self: stretch;
+  gap: 16px;
+  height: 64px;
+  margin-top: 16px;
+}
+
+.random-play button {
+  flex: none; /* 버튼 크기 고정 */
+  padding: 8px 16px;
+  font-size: 16px;
+  color: #ffffff;
+  background-color: #000000;
+  border: solid 1px #444444;
+  border-radius: 4px;
+}
+
+.random-play button:hover {
+  border-color: #ffffff;
+}
+
+.random-play button:active {
+  border-color: #888888;
+  background-color: #444444;
+}
+
 
 @media (max-width: 960px) {
   .content {
@@ -159,7 +202,6 @@ button {
   }
 }
 
-
 @media (max-width: 600px) {
   .content {
     align-self: stretch;
@@ -172,4 +214,6 @@ button {
       font-size: 18px;
     }
   }
+
+
 }
