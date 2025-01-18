@@ -181,7 +181,7 @@
                     throw new Error('Failed to fetch audio duration');
                 }
                 const { duration } = await response.json();
-                return duration;
+                return Math.floor(duration-1);
             } catch (error) {
                 console.error("fetchAudioDuration 오류:", error);
                 return 10;  // 서버 오류 발생 시 기본값 (10초) 제공
@@ -191,9 +191,11 @@
 
 
 
-        // 다음 트랙
+        // 다음 트랙 (3초 내 재생 실패 시 자동 이동)
         function nextTrack() {
+            const audioElement = document.getElementById("audio-player");
             const currentAlbum = albumKeys[currentAlbumIndex];
+
             if (currentTrackIndex + 1 < albumData[currentAlbum].length) {
                 currentTrackIndex++;
             } else if (currentAlbumIndex + 1 < albumKeys.length) {
@@ -203,7 +205,22 @@
                 currentAlbumIndex = 0;
                 currentTrackIndex = 0;
             }
+
             updateTrackInfo();
+
+            // 3초 내 재생되지 않으면 강제 트랙 변경
+            let timeout = setTimeout(() => {
+                if (audioElement.paused) {
+                    console.log("3초 동안 재생되지 않음 → 다음 트랙으로 이동");
+                    nextTrack();
+                }
+            }, 3000); // 3초 후 체크
+
+            //  재생 시작 감지 시 타임아웃 제거
+            audioElement.addEventListener("playing", () => {
+                console.log("정상 재생됨 → 트랙 변경 취소");
+                clearTimeout(timeout);
+            }, { once: true }); // 한 번만 실행되도록 설정
         }
 
         // 이전 트랙
