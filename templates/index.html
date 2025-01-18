@@ -181,7 +181,7 @@
                     throw new Error('Failed to fetch audio duration');
                 }
                 const { duration } = await response.json();
-                return Math.floor(duration-1);
+                return Math.floor(duration-2);
             } catch (error) {
                 console.error("fetchAudioDuration 오류:", error);
                 return 10;  // 서버 오류 발생 시 기본값 (10초) 제공
