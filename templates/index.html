@@ -8,13 +8,21 @@
     <title>Audio Player</title>
     <link rel="stylesheet" href="/static/index.css">
     <script>
-        let albumData = {}; // 앨범 데이터를 저장
-        let searchIndex = []; // 검색 인덱스
-        let albumKeys = []; // 앨범 순서를 저장
-        let currentAlbumIndex = 0; // 현재 앨범 인덱스
-        let currentTrackIndex = 0; // 현재 트랙 인덱스
-        let audioDurationCache = {}; // 오디오 길이 캐시
+            let albumData = {}; // 앨범 데이터를 저장
+            let searchIndex = []; // 검색 인덱스
+            let albumKeys = []; // 앨범 순서를 저장
+            let currentAlbumIndex = 0; // 현재 앨범 인덱스
+            let currentTrackIndex = 0; // 현재 트랙 인덱스
+            let audioDuration = 0; // 현재 트랙 길이 저장
 
+        // 전역 `trackTimeUpdate` 함수 정의
+        function trackTimeUpdate() {
+            const audioElement = document.getElementById('audio-player');
+            if (audioElement.currentTime >= audioDuration) {
+                console.log("트랙 종료 감지 -> 다음 곡으로 이동");
+                nextTrack();
+            }
+            }
         // JSON 데이터 불러오기
         async function fetchAlbumData() {
             const response = await fetch('/albums_list');
@@ -24,6 +32,7 @@
             renderSidebar(); // 초기 상태로 전체 데이터 표시
             updateTrackInfo();
         }
+
 
         // 검색 인덱스 생성
         function createSearchIndex(data) {
@@ -105,19 +114,14 @@
             return null;
         }
 
-        // 오디오 길이 가져오기
+        // 오디오 길이 가져오기 (캐싱 제거)
         async function fetchAudioDuration(path) {
-            if (audioDurationCache[path]) {
-                return audioDurationCache[path];
-            }
-
             try {
                 const response = await fetch(`/audio/duration/${encodeURIComponent(path.split('\\').pop())}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch audio duration');
                 }
                 const { duration } = await response.json();
-                audioDurationCache[path] = duration; // 캐싱
                 return duration;
             } catch (error) {
                 console.error(error);
@@ -125,7 +129,7 @@
             }
         }
 
-        // 트랙 정보 업데이트
+
         async function updateTrackInfo() {
             const audioElement = document.getElementById('audio-player');
             const titleElement = document.getElementById('track-title');
@@ -133,47 +137,59 @@
 
             const currentAlbum = albumKeys[currentAlbumIndex];
             const currentTrack = albumData[currentAlbum][currentTrackIndex];
-            const duration = await fetchAudioDuration(currentTrack.path);
-            console.log("duration" + duration); // 트랙 길이 확인
             const encodedFilename = encodeURIComponent(currentTrack.path.split('\\').pop());
 
-            // 상단에 곡명만 표시
-            titleElement.textContent = `${currentTrack.name}`;
+            // 기존 이벤트 리스너 제거
+            audioElement.removeEventListener("timeupdate", trackTimeUpdate);
+            audioElement.removeEventListener("ended", nextTrack);
 
-            // 오디오 및 커버 이미지 경로 설정
+            // UI 업데이트
+            titleElement.textContent = `${currentTrack.name}`;
             audioElement.src = `/audio/${encodedFilename}`;
             coverElement.src = `/cover/${encodedFilename}`;
-
             coverElement.onerror = () => {
                 coverElement.src = '/public/none';
                 coverElement.onerror = null;
             };
-            const duration1 = Math.floor(duration) - 1; // 정수로 변환하여 종료 조건 보장
-        console.log("트랙 길이 (초):", duration1);
 
-        // timeupdate 이벤트로 트랙 종료 감지
-        audioElement.addEventListener("timeupdate", () => {
-            if (audioElement.currentTime >= duration1) {
-                console.log("트랙 종료 감지 → 다음 곡으로 이동");
-                nextTrack();
+            try {
+                // 새로운 곡의 길이를 가져오기
+                audioDuration = await fetchAudioDuration(currentTrack.path);
+                console.log("🔹 새로운 트랙 길이 (초):", audioDuration);
+
+                // 새 이벤트 리스너 추가
+                audioElement.addEventListener("timeupdate", trackTimeUpdate);
+                audioElement.addEventListener("ended", nextTrack);
+
+                // 오디오 로드 및 재생
+                audioElement.load();
+                audioElement.addEventListener('canplay', () => {
+                    audioElement.play().catch(error => {
+                        console.error("Playback failed:", error);
+                    });
+                }, { once: true });
+            } catch (error) {
+                console.error("오류 발생:", error);
             }
-        });
-
-        // ended 이벤트로 보완
-        audioElement.addEventListener("ended", () => {
-            console.log("오디오 완전 종료됨 → 다음 곡으로 이동");
-            nextTrack();
-        });
-
-
-            audioElement.load();
-
-            audioElement.addEventListener('canplay', () => {
-                audioElement.play().catch(error => {
-                    console.error("Playback failed:", error);
-                });
-            }, { once: true });
         }
+
+// 오디오 길이 가져오기 (서버 오류 발생 시 기본값 제공)
+        async function fetchAudioDuration(path) {
+            try {
+                const response = await fetch(`/audio/duration/${encodeURIComponent(path.split('\\').pop())}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch audio duration');
+                }
+                const { duration } = await response.json();
+                return duration;
+            } catch (error) {
+                console.error("fetchAudioDuration 오류:", error);
+                return 10;  // 서버 오류 발생 시 기본값 (10초) 제공
+            }
+        }
+
+
+
 
         // 다음 트랙
         function nextTrack() {
@@ -205,15 +221,8 @@
             }
             updateTrackInfo();
         }
-
         window.onload = function () {
             fetchAlbumData(); // 앨범 데이터 가져오기
-
-            const audioElement = document.getElementById('audio-player');
-
-            audioElement.addEventListener('ended', nextTrack); // 트랙 종료 시 순번대로 다음 트랙으로
-
-            // 검색 이벤트
             document.getElementById('search-bar').addEventListener('input', searchTracks);
         };
 
