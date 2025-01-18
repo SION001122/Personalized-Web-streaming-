@@ -96,7 +96,9 @@ https://ffmpeg.org/
 
 4.Runapp.bat 으로 서버 실행 확인 후 종료
 
-5. 1번에서 reader.bat를 실행했을 떄 나온 audio 디렉토리(폴더)에 음원 파일을 넣고 reader.bat를 실행하면 audio_file_list.txt에 등록됩니다. (수동으로 등록해도 무방합니다.)
+5. 1번에서 reader.bat를 실행했을 떄 나온 audio 디렉토리(폴더)에 음원 파일(바로가기를 만들어서 넣어도 무방)
+
+을 넣고 reader.bat를 실행하면 audio_file_list.txt에 등록됩니다. (수동으로 등록해도 무방합니다.)
   
 7. Runapp.bat 으로 서버 실행 후 나온 ip:8000 이렇게 되어있는 주소로 접속해서 테스트
    
