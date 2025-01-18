@@ -8,114 +8,226 @@
     <title>Audio Player</title>
     <link rel="stylesheet" href="/static/index.css">
     <script>
-        let audioFiles = {{ audio_files|tojson|safe }}; // JSON 형식으로 audio_files 가져옴
-        let currentIndex = 0; // 현재 트랙 인덱스
+        let albumData = {}; // 앨범 데이터를 저장
+        let searchIndex = []; // 검색 인덱스
+        let albumKeys = []; // 앨범 순서를 저장
+        let currentAlbumIndex = 0; // 현재 앨범 인덱스
+        let currentTrackIndex = 0; // 현재 트랙 인덱스
+        let audioDurationCache = {}; // 오디오 길이 캐시
 
-        // 배열을 섞는 함수
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+        // JSON 데이터 불러오기
+        async function fetchAlbumData() {
+            const response = await fetch('/albums_list');
+            albumData = await response.json();
+            albumKeys = Object.keys(albumData);
+            createSearchIndex(albumData); // 검색 인덱스 생성
+            renderSidebar(); // 초기 상태로 전체 데이터 표시
+            updateTrackInfo();
+        }
+
+        // 검색 인덱스 생성
+        function createSearchIndex(data) {
+            searchIndex = [];
+            Object.keys(data).forEach(albumKey => {
+                data[albumKey].forEach(track => {
+                    searchIndex.push({
+                        album: albumKey.toLowerCase(),
+                        track: track.name.toLowerCase(),
+                        path: track.path
+                    });
+                });
+            });
+        }
+
+        // 검색 기능
+        function searchTracks() {
+            const query = document.getElementById('search-bar').value.toLowerCase();
+            const filteredTracks = searchIndex.filter(item =>
+                item.album.includes(query) || item.track.includes(query)
+            );
+
+            const filteredData = {};
+            filteredTracks.forEach(item => {
+                if (!filteredData[item.album]) filteredData[item.album] = [];
+                filteredData[item.album].push({ name: item.track, path: item.path });
+            });
+
+            renderSidebar(filteredData);
+        }
+
+        // 슬라이더바에 앨범과 트랙 표시
+        function renderSidebar(filteredData = null) {
+            const sidebar = document.querySelector('.sidebar-content');
+            sidebar.innerHTML = ''; // 기존 내용 초기화
+            const data = filteredData || albumData;
+
+            Object.keys(data).forEach((albumKey) => {
+                // 앨범 헤더
+                const albumHeader = document.createElement('div');
+                albumHeader.textContent = albumKey;
+                albumHeader.className = 'sidebar-album';
+                sidebar.appendChild(albumHeader);
+
+                // 트랙 리스트
+                data[albumKey].forEach((track) => {
+                    const trackDiv = document.createElement('div');
+                    trackDiv.textContent = track.name;
+                    trackDiv.className = 'sidebar-track';
+                    trackDiv.onclick = () => {
+                        playTrackByPath(track.path); // 경로를 기반으로 곡 재생
+                    };
+                    sidebar.appendChild(trackDiv);
+                });
+            });
+        }
+
+        // 경로 기반으로 곡 재생
+        function playTrackByPath(path) {
+            const foundTrack = findTrackByPath(path);
+            if (foundTrack) {
+                const { albumKey, trackIndex } = foundTrack;
+                currentAlbumIndex = albumKeys.indexOf(albumKey);
+                currentTrackIndex = trackIndex;
+                updateTrackInfo();
+            } else {
+                console.error(`Track with path "${path}" not found in albumData.`);
             }
         }
 
-        shuffleArray(audioFiles); // audioFiles 배열 섞기
+        // 경로 기반으로 트랙 찾기
+        function findTrackByPath(path) {
+            for (const albumKey of albumKeys) {
+                const trackIndex = albumData[albumKey].findIndex((track) => track.path === path);
+                if (trackIndex !== -1) {
+                    return { albumKey, trackIndex };
+                }
+            }
+            return null;
+        }
+
+        // 오디오 길이 가져오기
+        async function fetchAudioDuration(path) {
+            if (audioDurationCache[path]) {
+                return audioDurationCache[path];
+            }
+
+            try {
+                const response = await fetch(`/audio/duration/${encodeURIComponent(path.split('\\').pop())}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch audio duration');
+                }
+                const { duration } = await response.json();
+                audioDurationCache[path] = duration; // 캐싱
+                return duration;
+            } catch (error) {
+                console.error(error);
+                return 0;
+            }
+        }
 
         // 트랙 정보 업데이트
-        function updateTrackInfo() {
+        async function updateTrackInfo() {
             const audioElement = document.getElementById('audio-player');
             const titleElement = document.getElementById('track-title');
             const coverElement = document.getElementById('album-cover');
-            const currentTrack = audioFiles[currentIndex];
-            const originalPath = currentTrack.path.replace(/\\/g, '/').split('/').pop();
-            const trackName = originalPath.replace(/\.[^/.]+$/, ""); // 확장자 제거
 
-            titleElement.textContent = trackName;
+            const currentAlbum = albumKeys[currentAlbumIndex];
+            const currentTrack = albumData[currentAlbum][currentTrackIndex];
+            const duration = await fetchAudioDuration(currentTrack.path);
+            console.log("duration" + duration); // 트랙 길이 확인
+            const encodedFilename = encodeURIComponent(currentTrack.path.split('\\').pop());
 
-            const selectedEffects = getSelectedEffects();
-            const encodedFilename = encodeURIComponent(originalPath);
+            // 상단에 곡명만 표시
+            titleElement.textContent = `${currentTrack.name}`;
 
-            audioElement.src = `/audio/${encodedFilename}?effects=${selectedEffects}`;
+            // 오디오 및 커버 이미지 경로 설정
+            audioElement.src = `/audio/${encodedFilename}`;
             coverElement.src = `/cover/${encodedFilename}`;
 
             coverElement.onerror = () => {
-                coverElement.src = "/public/none";
+                coverElement.src = '/public/none';
                 coverElement.onerror = null;
             };
+            const duration1 = Math.floor(duration) - 1; // 정수로 변환하여 종료 조건 보장
+        console.log("트랙 길이 (초):", duration1);
+
+        // timeupdate 이벤트로 트랙 종료 감지
+        audioElement.addEventListener("timeupdate", () => {
+            if (audioElement.currentTime >= duration1) {
+                console.log("트랙 종료 감지 → 다음 곡으로 이동");
+                nextTrack();
+            }
+        });
+
+        // ended 이벤트로 보완
+        audioElement.addEventListener("ended", () => {
+            console.log("오디오 완전 종료됨 → 다음 곡으로 이동");
+            nextTrack();
+        });
+
 
             audioElement.load();
 
-            // 오디오 로드 후 재생 가능 상태가 되면 자동 재생
             audioElement.addEventListener('canplay', () => {
                 audioElement.play().catch(error => {
                     console.error("Playback failed:", error);
                 });
-            }, { once: true }); // 한 번만 이벤트 처리
-        }
-
-        // 선택된 효과 가져오기
-        function getSelectedEffects() {
-            const effects = [];
-            document.querySelectorAll('input[name="effects"]:checked').forEach((checkbox) => {
-                effects.push(checkbox.value);
-            });
-            return effects.join(',');
+            }, { once: true });
         }
 
         // 다음 트랙
         function nextTrack() {
-            currentIndex++;
-            if (currentIndex >= audioFiles.length) {
-                currentIndex = 0; // 처음으로 돌아가기
+            const currentAlbum = albumKeys[currentAlbumIndex];
+            if (currentTrackIndex + 1 < albumData[currentAlbum].length) {
+                currentTrackIndex++;
+            } else if (currentAlbumIndex + 1 < albumKeys.length) {
+                currentAlbumIndex++;
+                currentTrackIndex = 0;
+            } else {
+                currentAlbumIndex = 0;
+                currentTrackIndex = 0;
             }
             updateTrackInfo();
         }
 
         // 이전 트랙
         function previousTrack() {
-            currentIndex--;
-            if (currentIndex < 0) {
-                currentIndex = audioFiles.length - 1;
+            if (currentTrackIndex > 0) {
+                currentTrackIndex--;
+            } else if (currentAlbumIndex > 0) {
+                currentAlbumIndex--;
+                const prevAlbum = albumKeys[currentAlbumIndex];
+                currentTrackIndex = albumData[prevAlbum].length - 1;
+            } else {
+                currentAlbumIndex = albumKeys.length - 1;
+                const lastAlbum = albumKeys[currentAlbumIndex];
+                currentTrackIndex = albumData[lastAlbum].length - 1;
             }
             updateTrackInfo();
         }
 
-        // 특정 트랙 설정
-        function setTrack(index) {
-            currentIndex = index;
-            updateTrackInfo();
-        }
-
         window.onload = function () {
+            fetchAlbumData(); // 앨범 데이터 가져오기
+
             const audioElement = document.getElementById('audio-player');
 
-            audioElement.addEventListener('stalled', () => {
-                console.log("Audio playback stalled, moving to next track after 3 seconds.");
-                setTimeout(() => {
-                    nextTrack();
-                }, 3000);
-            });
+            audioElement.addEventListener('ended', nextTrack); // 트랙 종료 시 순번대로 다음 트랙으로
 
-            audioElement.addEventListener('playing', () => {
-                console.log("Audio playback resumed.");
-            });
-
-            audioElement.addEventListener('ended', () => {
-                nextTrack();
-            });
-
-            // 슬라이더바 동적 생성
-            const sidebar = document.querySelector(".sidebar-content");
-            audioFiles.forEach((audio, i) => {
-                const div = document.createElement('div');
-                div.onclick = () => {
-                    setTrack(i); // 클릭 시 해당 트랙 재생
-                }
-                div.textContent = audio.name; // 트랙 이름 설정
-                div.className = "sidebar-track"; // CSS 클래스 추가
-                sidebar.appendChild(div); // 슬라이더바에 추가
-            });
+            // 검색 이벤트
+            document.getElementById('search-bar').addEventListener('input', searchTracks);
         };
+
+        function playRandomTrack() {
+            if (albumKeys.length === 0 || Object.keys(albumData).length === 0) {
+                console.error("Album data is not loaded yet.");
+                return;
+            }
+            const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
+            const randomTrackIndex = Math.floor(Math.random() * albumData[albumKeys[randomAlbumIndex]].length);
+            currentAlbumIndex = randomAlbumIndex;
+            currentTrackIndex = randomTrackIndex;
+            updateTrackInfo();
+        }
     </script>
 </head>
 
@@ -124,17 +236,13 @@
     <div class="main">
         <div class="content">
             <div class="player">
-                <h3 id="track-title"></h3>
-                <img id="album-cover" src="default_cover.png" alt="Album Cover" width="300" height="300" />
-                <div class="special-controls">
-                    <h4>Select Effects:</h4>
-                    <label><input type="checkbox" name="effects" value="echo"> Echo</label><br>
-                    <audio id="audio-player" controls>
-                        <source id="audio-source" src="" type="audio/flac">
-                        Your browser does not support the audio element.
-                    </audio>
-                </div>
-            
+                <input type="text" id="search-bar" placeholder="Search for albums or tracks...">
+                <h3 id="track-title"></h3> <!-- 곡명 표시 -->
+                <img id="album-cover" src="/public/none" alt="Album Cover" width="300" height="300" />
+                <audio id="audio-player" controls>
+                    <source id="audio-source" src="" type="audio/flac">
+                    Your browser does not support the audio element.
+                </audio>
                 <div class="buttons">
                     <button onclick="previousTrack()">Previous Track</button>
                     <button onclick="nextTrack()">Next Track</button>
@@ -144,6 +252,8 @@
                 <div class="sidebar-content">
                 </div>
             </div>
+            <div class ="random-play">
+                <button onclick="playRandomTrack()">Random Play</button>
         </div>
     </div>
 </body>
