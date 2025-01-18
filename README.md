@@ -80,7 +80,7 @@ reader.py 를 실행하면 해당 디렉토리가 생성되고, 그 디렉토리
 
 0.모든 플랫폼에서 사용하기를 바라기 때문에 ffmpeg은 첨부하지 않았습니다. 따라서 ffmpeg를 아래의 링크에서 설치 후 사용해주시기를 바랍니다.
 
-https://ffmpeg.org/
+[https://ffmpeg.org/](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
 
 여기서 다운로드 가능합니다.
 
