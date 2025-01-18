@@ -16,7 +16,9 @@ import argparse
 from album import json_album_list, save_json_to_file #빼먹은 코드 추가함.
 import json
 from unit import extract_audio_files, get_audio_duration, extract_album_cover
+from flask_compress import Compress
 app = Flask(__name__)
+Compress(app)
 app.secret_key = "qwyueyqwhuidhuwi@#&(*&!&@#*(HNCDLKJNCLK:SS!@#(*&(*!%*!@))))"  # 세션을 사용하기 위한 비밀 키 설정
 # 스레드 풀 생성 (최대 10개의 스레드 사용)
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
@@ -41,7 +43,7 @@ failed_login_attempts = {}
 last_ping_time = {}
 
 # 청크 크기 설정
-CHUNK_SIZE = 512# 64KB 단위로 데이터를 전송
+CHUNK_SIZE = 512# 512kb 단위로 데이터를 전송
 
 # os.path.abspath 함수로 경로를 OS에 맞게 수정
 file_list_path = os.path.abspath("./audio_file_list.txt")
@@ -228,7 +230,7 @@ def post_audio_duration():
     file_duration = get_audio_duration(file_path)
     if file_duration is None:
         return jsonify({"error": "Could not retrieve duration"}), 500
-
+    print(f"File duration: {file_duration} seconds")
     return jsonify({"duration": file_duration})
 
 
@@ -351,10 +353,13 @@ def stream_audio(filename):
                 if current_process.returncode != 0:
                     print(f"FFmpeg error (Exit Code {current_process.returncode}): {error}")
                 manage_process_list()
+        # Cache-Control과 Gzip/Brotli 압축 활성화
+        response = Response(generate(), mimetype="audio/flac")
+        response.headers['Cache-Control'] = 'public, max-age=3600'
 
-        return Response(generate(), mimetype="audio/flac")
+        return response
 
-
+@app.route("/albums_list", methods=["GET"])
 def albums_list():
     # albums_list.json 파일을 읽어서 반환
     try:
@@ -387,7 +392,7 @@ def get_duration(filename):
 
     return "File not found", 404
 app.config['SESSION_COOKIE_SECURE'] = False # HTTPS에서만 세션 쿠키 전송
-app.config['SESSION_COOKIE_HTTPONLY'] = True # JavaScript에서 세션 쿠키 접근 불가
+app.config['SESSION_COOKIE_HTTPONLY'] = False # JavaScript에서 세션 쿠키 접근 불가
 #이렇게 설정하면 세션 쿠키가 HTTPS 프로토콜을 사용하는 경우에만 전송되며, JavaScript를 통해 세션 쿠키에 접근할 수 없습니다.
 #보안적으로는 좋고, 음악 재생에는 영향을 주지 않습니다.
 
