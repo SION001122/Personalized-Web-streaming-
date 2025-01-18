@@ -155,7 +155,7 @@
             try {
                 // 새로운 곡의 길이를 가져오기
                 audioDuration = await fetchAudioDuration(currentTrack.path);
-                console.log("🔹 새로운 트랙 길이 (초):", audioDuration);
+                console.log("새로운 트랙 길이 (초):", audioDuration);
 
                 // 새 이벤트 리스너 추가
                 audioElement.addEventListener("timeupdate", trackTimeUpdate);
