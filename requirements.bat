@@ -1,3 +1,4 @@
-pip install Flask
-pip install mutagen
-pip install Pillow
+Flask
+mutagen
+Pillow
+flask_compress
