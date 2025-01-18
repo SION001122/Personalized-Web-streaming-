@@ -3,9 +3,10 @@ import sys
 
 # 설치가 필요한 패키지 목록
 required_packages = [
-    "flask",
-    "mutagen",
-    "pillow",
+    Flask==2.2.5
+    mutagen==1.46.0
+    Pillow==10.0.0
+    flask-compress==1.13
 ]
 
 def install_packages(packages):
