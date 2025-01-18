@@ -1,9 +1,10 @@
 html {
   --bg: #000000;
-  --fg: #ffffff; 
+  --fg: #ffffff;
 }
 
-html, body {
+html,
+body {
   padding: 0;
   margin: 0;
   width: 100vw;
@@ -37,6 +38,7 @@ button {
   &:hover {
     border-color: #ffffff;
   }
+
   &:active {
     border-color: #888888;
     background-color: #444444;
@@ -57,7 +59,7 @@ input[type="text"]:focus {
 }
 
 .title::before {
-  content:"🎧";
+  content: "🎧";
   font-size: 28px;
   margin-right: 8px;
 }
@@ -140,7 +142,7 @@ input[type="text"]:focus {
 }
 
 .buttons {
-  
+
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -154,11 +156,13 @@ input[type="text"]:focus {
     flex: 1;
   }
 }
+
 .random-play {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  justify-content: center; /* 버튼을 가운데 정렬 */
+  justify-content: center;
+  /* 버튼을 가운데 정렬 */
   align-self: stretch;
   gap: 16px;
   height: 64px;
@@ -166,7 +170,8 @@ input[type="text"]:focus {
 }
 
 .random-play button {
-  flex: none; /* 버튼 크기 고정 */
+  flex: none;
+  /* 버튼 크기 고정 */
   padding: 8px 16px;
   font-size: 16px;
   color: #ffffff;
