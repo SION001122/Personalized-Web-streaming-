@@ -274,7 +274,7 @@ def stream_audio(filename):
             # 확장자에 따른 FFmpeg 명령어 설정
             if file_extension == '.aiff':
                 #command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', str(threads)]
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension in ['.dsf', '.dff']:
                 command = [
                     'ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',
@@ -282,39 +282,39 @@ def stream_audio(filename):
                     '-threads', str(threads)
                 ]
             elif file_extension == '.wav':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.flac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.mp3':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.m4a':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.ogg':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.opus':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.wma':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.mka':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.mpc':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.ape':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.m4b':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.m4p':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.m4r':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.aac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.aa':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             elif file_extension == '.aax':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             else:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-threads', str(threads)]
+                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
             # 음장 효과 필터가 있을 경우 명령어에 필터 추가
             if filter_string:
                 command.extend(['-af', filter_string])
@@ -391,8 +391,8 @@ def get_duration(filename):
 
 
     return "File not found", 404
-app.config['SESSION_COOKIE_SECURE'] = False # HTTPS에서만 세션 쿠키 전송
-app.config['SESSION_COOKIE_HTTPONLY'] = False # JavaScript에서 세션 쿠키 접근 불가
+app.config['SESSION_COOKIE_SECURE'] = True # HTTPS에서만 세션 쿠키 전송
+app.config['SESSION_COOKIE_HTTPONLY'] = True # JavaScript에서 세션 쿠키 접근 불가
 #이렇게 설정하면 세션 쿠키가 HTTPS 프로토콜을 사용하는 경우에만 전송되며, JavaScript를 통해 세션 쿠키에 접근할 수 없습니다.
 #보안적으로는 좋고, 음악 재생에는 영향을 주지 않습니다.
 
