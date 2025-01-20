@@ -114,7 +114,8 @@ reader.bat 업데이트. 바로가기 파일 대응
 
 
 
-추가적으로 프론트 도와주신 NINIBIDA님 정말 감사합니다 ㅜㅜ... 없었으면 서버만 배포 할 뻔 했어요.
+추가적으로 프론트 작업 해 주신 NINIBIDA님 정말 감사합니다 . 
+없었으면 서버만 배포 할 뻔 했어요.
 ## Third-Party Libraries
 
 This project uses the following third-party library:
