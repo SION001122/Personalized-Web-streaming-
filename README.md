@@ -111,7 +111,10 @@ reader.bat 업데이트. 바로가기 파일 대응
 7. Runapp.bat 으로 서버 실행 후 나온 ip:8000 이렇게 되어있는 주소로 접속해서 테스트
    
 8. 안드로이드 기기를 가지고 있는 경우 해당 레포지토리에서 apk파일을 받아다가 설치 후 꼬다리 dac 같은 외부 dac로 즐기면 바이패스가 가능합니다!
-    
+
+
+
+추가적으로 프론트 도와주신 NINIBIDA님 정말 감사합니다 ㅜㅜ... 없었으면 서버만 배포 할 뻔 했어요.
 ## Third-Party Libraries
 
 This project uses the following third-party library:
