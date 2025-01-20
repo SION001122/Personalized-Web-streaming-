@@ -116,6 +116,7 @@ reader.bat 업데이트. 바로가기 파일 대응
 
 추가적으로 프론트 작업 해 주신 SINIBIDA님 정말 감사합니다 . 
 없었으면 서버만 배포 할 뻔 했어요.
+
 [기여자의 깃허브(SINIBIDA)](https://github.com/sinibida)
 
 [현재 포크로 활발히 진행 되고 있는 프로젝트(bytecakelake)](https://github.com/bytecakelake/Personalized-Web-streaming-fork)
