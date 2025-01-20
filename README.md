@@ -119,7 +119,7 @@ reader.bat 업데이트. 바로가기 파일 대응
 
 [기여자의 깃허브(SINIBIDA)](https://github.com/sinibida)
 
-[현재 포크로 활발히 진행 되고 있는 프로젝트(bytecakelake)](https://github.com/bytecakelake/Personalized-Web-streaming-fork)
+[현재 포크로 활발히 진행 되고 fastapi를 이용한 프로젝트(bytecakelake)](https://github.com/bytecakelake/Personalized-Web-streaming-fork/tree/restapi-server-with-fastapi)
 
 여기 두 개도 많이 들러주세요!
 ## Third-Party Libraries
