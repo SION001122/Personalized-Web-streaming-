@@ -1,5 +1,5 @@
 # 앱을 켜고 dac 연결 후  권한 확인 후 다른 앱을 사용 해 주세요!!! 이래야 바이패스가 제대로 적용이 됩니다!!!
-
+#앱 사용자분들은 지우고 다시 깔아주세요!
 # Personalized-Web-streaming-
 Personalized Web streaming(개인화된 웹 스트리밍)
 
