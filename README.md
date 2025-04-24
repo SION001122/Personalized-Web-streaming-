@@ -1,3 +1,13 @@
+＃Official : 
+
+curalicense@gmail.com 
+
+
+＃community email :
+
+sion@idolmaster-live.com
+
+
 # Personalized-Web-streaming-
 Personalized Web streaming(개인화된 웹 스트리밍)
 
