@@ -54,10 +54,6 @@
     let loadedAlbumCount = 0;
     const ALBUM_BATCH_SIZE = 10; // 앨범 10개 단위 로드
 
-    function isIOS() {
-      return /iPad|iPhone|iPod/.test(navigator.userAgent);
-    }
-
     async function fetchAlbumData() {
       const response = await fetch('/albums_list');
       albumData = await response.json();
@@ -198,6 +194,9 @@
       try {
         audioDuration = await fetchAudioDuration(currentTrack.path);
         audioElement.load();
+        audioElement.play().catch(err => {
+          console.warn("Autoplay blocked:", err);
+        });
       } catch (err) {}
     }
 
@@ -239,16 +238,28 @@
       updateTrackInfo();
     }
 
+    // 📌 최초 사용자 입력으로 autoplay unlock
+    function unlockAutoplay() {
+      const audioElement = document.getElementById("audio-player");
+      audioElement.play().catch(() => {});
+      document.body.removeEventListener("click", unlockAutoplay);
+      document.body.removeEventListener("touchend", unlockAutoplay);
+      document.body.removeEventListener("keydown", unlockAutoplay);
+    }
+
     window.onload = function () {
       fetchAlbumData();
       document.getElementById('search-bar').addEventListener('input', searchTracks);
 
-      if (isIOS()) {
-        document.body.addEventListener("touchend", async () => {
-          const audioElement = document.getElementById("audio-player");
-          try { await audioElement.play(); } catch {}
-        }, { once: true });
-      }
+      // 모든 기기에서 입력 이벤트로 autoplay 해제
+      document.body.addEventListener("click", unlockAutoplay, { once: true });
+      document.body.addEventListener("touchend", unlockAutoplay, { once: true });
+      document.body.addEventListener("keydown", unlockAutoplay, { once: true });
+
+      // 📌 14초 간격으로 서버 핑
+      setInterval(() => {
+        fetch("/ping").catch(() => {});
+      }, 14000);
     };
   </script>
 </head>
