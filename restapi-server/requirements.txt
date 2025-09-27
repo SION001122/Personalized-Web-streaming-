@@ -1,0 +1,5 @@
+orjson
+fastapi
+uvicorn[standard]
+sqlmodel
+av # pyav
