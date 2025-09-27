@@ -4,6 +4,8 @@ import random
 import time
 from flask import Flask, render_template, Response, send_file, request, redirect, url_for, session, flash, jsonify
 from mutagen import File
+from mutagen.id3 import ID3
+from mutagen.mp4 import MP4
 from PIL import Image
 import io
 import copy
@@ -79,14 +81,46 @@ def ping():
         return jsonify({"status": "alive"}), 200
     return jsonify({"status": "unauthorized"}), 401
 
+
+def extract_album_cover(file_path):
+    try:
+        audio = File(file_path)
+        image_data = None
+
+        # MP3 (ID3 태그)
+        if file_path.lower().endswith(".mp3"):
+            tags = ID3(file_path)
+            for tag in tags.values():
+                if tag.FrameID == "APIC":  # Album Picture
+                    image_data = tag.data
+                    break
+
+        # M4A / MP4 (iTunes)
+        elif file_path.lower().endswith((".m4a", ".mp4")):
+            tags = MP4(file_path).tags
+            if "covr" in tags:
+                image_data = tags["covr"][0]
+
+        # 이미지가 있으면 BytesIO로 감싸서 반환
+        if image_data:
+            buf = io.BytesIO(image_data)
+            buf.seek(0)
+            return buf
+
+    except Exception as e:
+        print(f"extract_album_cover error: {e}")
+
+    return None
+
+
 @app.route("/public/none")
 def error_album_cover():
-    image = Image.open(r".\none.png")
-    image_byte_array = image.save(io.BytesIO(), format="PNG")
+    # 1x1 투명 PNG 생성 (placeholder)
+    image = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+    image_byte_array = io.BytesIO()
     image.save(image_byte_array, format="PNG")
     image_byte_array.seek(0)
-    print("앨범 커버를 찾을 수 없습니다.")
-    return image_byte_array
+    return send_file(image_byte_array, mimetype="image/png")
 
 # 앨범 커버를 제공하는 라우트
 @app.route("/cover/<filename>")
@@ -96,7 +130,10 @@ def get_album_cover(filename):
         image = extract_album_cover(file_info["path"])
         if image:
             return send_file(image, mimetype="image/png")
-    return "No cover available", 404
+
+    # fallback: 준비된 none.png 반환
+    return send_file("static/none.png", mimetype="image/png")
+
     
 @app.route("/")
 def index():
@@ -411,4 +448,3 @@ if __name__ == "__main__":
     init_thread = threading.Thread(target=initialize, daemon=True)
     init_thread.start()
     app.run(host="0.0.0.0", debug=args.debug, threaded=True, port=8000)
-
