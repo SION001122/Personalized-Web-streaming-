@@ -10,31 +10,28 @@
   <style>
     .sidebar {
       width: 300px;
-      height: 600px; /* 스크롤 테스트용 고정 높이 */
+      height: 600px; /* 고정 높이 */
       overflow-y: auto;
       border: 1px solid #ccc;
-      -webkit-overflow-scrolling: touch; /* iOS 스크롤 부드럽게 */
+      -webkit-overflow-scrolling: touch;
     }
     .sidebar-content {
-      position: relative;
       width: 100%;
     }
     .sidebar-track {
-      height: 30px;
-      line-height: 30px;
-      padding: 0 10px;
+      padding: 4px 10px;
       border-bottom: 1px solid #eee;
       cursor: pointer;
-      background: #fff; /* 겹침 방지 */
+      background: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .sidebar-album {
-      height: 30px;
-      line-height: 30px;
       font-weight: bold;
       background: #f0f0f0;
-      padding: 0 10px;
+      padding: 4px 10px;
     }
-    /* 오디오 플레이어 컨트롤 크기 */
     #audio-player {
       margin-top: 10px;
       width: 250px;
@@ -52,23 +49,13 @@
     let currentTrackIndex = 0;
     let audioDuration = 0;
 
-    // Virtual scroll
+    // 무한스크롤 상태
     let flatTrackList = [];
-    const ITEM_HEIGHT = 30;
-    const VISIBLE_COUNT = 40;
-    let totalHeight = 0;
+    let loadedAlbumCount = 0;
+    const ALBUM_BATCH_SIZE = 10; // 앨범 10개 단위 로드
 
-    // iOS 감지
     function isIOS() {
       return /iPad|iPhone|iPod/.test(navigator.userAgent);
-    }
-
-    function trackTimeUpdate() {
-      const audioElement = document.getElementById('audio-player');
-      if (audioElement.currentTime >= audioElement.duration - 1) {
-        console.log("트랙 종료 감지 -> 다음 곡으로 이동");
-        nextTrack();
-      }
     }
 
     async function fetchAlbumData() {
@@ -76,20 +63,21 @@
       albumData = await response.json();
       albumKeys = Object.keys(albumData);
       createSearchIndex(albumData);
-      buildFlatTrackList(albumData);
-      renderVirtualSidebar();
+
+      loadMoreAlbums();
+      renderSidebar();
       updateTrackInfo();
     }
 
-    function buildFlatTrackList(data) {
-      flatTrackList = [];
-      Object.keys(data).forEach(albumKey => {
+    function loadMoreAlbums() {
+      const nextAlbums = albumKeys.slice(loadedAlbumCount, loadedAlbumCount + ALBUM_BATCH_SIZE);
+      nextAlbums.forEach(albumKey => {
         flatTrackList.push({ type: "album", name: albumKey });
-        data[albumKey].forEach(track => {
+        albumData[albumKey].forEach(track => {
           flatTrackList.push({ type: "track", album: albumKey, track });
         });
       });
-      totalHeight = flatTrackList.length * ITEM_HEIGHT;
+      loadedAlbumCount += nextAlbums.length;
     }
 
     function createSearchIndex(data) {
@@ -115,41 +103,47 @@
         if (!filteredData[item.album]) filteredData[item.album] = [];
         filteredData[item.album].push({ name: item.track, path: item.path });
       });
-      buildFlatTrackList(filteredData);
-      renderVirtualSidebar();
+
+      flatTrackList = [];
+      Object.keys(filteredData).forEach(albumKey => {
+        flatTrackList.push({ type: "album", name: albumKey });
+        filteredData[albumKey].forEach(track => {
+          flatTrackList.push({ type: "track", album: albumKey, track });
+        });
+      });
+
+      renderSidebar(true); // 검색 시 전체 새로 그림
     }
 
-    function renderVirtualSidebar() {
+    function renderSidebar(reset = false) {
       const sidebar = document.querySelector('.sidebar');
       const content = document.querySelector('.sidebar-content');
-      content.style.height = totalHeight + "px";
 
-      function render() {
-        const scrollTop = sidebar.scrollTop;
-        const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
-        const endIndex = Math.min(startIndex + VISIBLE_COUNT, flatTrackList.length);
+      // 항상 먼저 비움 (겹침 방지)
+      content.innerHTML = "";
 
-        content.innerHTML = "";
-        for (let i = startIndex; i < endIndex; i++) {
-          const item = flatTrackList[i];
-          const div = document.createElement("div");
-          div.style.height = ITEM_HEIGHT + "px";
-          div.style.lineHeight = ITEM_HEIGHT + "px";
-          div.style.transform = `translateY(${i * ITEM_HEIGHT}px)`;
-
-          if (item.type === "album") {
-            div.className = "sidebar-album";
-            div.textContent = item.name;
-          } else {
-            div.className = "sidebar-track";
-            div.textContent = item.track.name;
-            div.onclick = () => playTrackByPath(item.track.path);
-          }
-          content.appendChild(div);
+      flatTrackList.forEach(item => {
+        const div = document.createElement("div");
+        if (item.type === "album") {
+          div.className = "sidebar-album";
+          div.textContent = item.name;
+        } else {
+          div.className = "sidebar-track";
+          div.textContent = item.track.name;
+          div.onclick = () => playTrackByPath(item.track.path);
         }
-      }
-      sidebar.onscroll = render;
-      render();
+        content.appendChild(div);
+      });
+
+      // 무한 스크롤 감지
+      sidebar.onscroll = () => {
+        if (sidebar.scrollTop + sidebar.clientHeight >= sidebar.scrollHeight - 10) {
+          if (loadedAlbumCount < albumKeys.length) {
+            loadMoreAlbums();
+            renderSidebar(); // 새로 그려도 기존 DOM은 지우고 새로 생성
+          }
+        }
+      };
     }
 
     function playTrackByPath(path) {
@@ -159,8 +153,6 @@
         currentAlbumIndex = albumKeys.indexOf(albumKey);
         currentTrackIndex = trackIndex;
         updateTrackInfo();
-      } else {
-        console.error(`Track with path "${path}" not found in albumData.`);
       }
     }
 
@@ -182,7 +174,6 @@
         const { duration } = await res.json();
         return Math.floor(duration - 2);
       } catch (e) {
-        console.error("fetchAudioDuration 오류:", e);
         return 10;
       }
     }
@@ -199,35 +190,18 @@
       const encoded = encodeURIComponent(fileWithExt);
       const displayName = stripExt(fileWithExt);
 
-      audioElement.removeEventListener("timeupdate", trackTimeUpdate);
-      audioElement.removeEventListener("ended", nextTrack);
-
       titleElement.textContent = displayName;
       audioElement.src = `/audio/${encoded}`;
       coverElement.src = `/cover/${encoded}`;
-      coverElement.onerror = () => {
-        coverElement.src = '/public/none';
-        coverElement.onerror = null;
-      };
+      coverElement.onerror = () => { coverElement.src = '/public/none'; };
 
       try {
         audioDuration = await fetchAudioDuration(currentTrack.path);
-        audioElement.addEventListener("timeupdate", trackTimeUpdate);
-        audioElement.addEventListener("ended", nextTrack);
-
         audioElement.load();
-        audioElement.addEventListener('canplay', () => {
-          audioElement.play().catch(err => {
-            console.warn("iOS에서 자동 재생 실패, 사용자 입력 필요:", err);
-          });
-        }, { once: true });
-      } catch (err) {
-        console.error("오류 발생:", err);
-      }
+      } catch (err) {}
     }
 
     function nextTrack() {
-      const audioElement = document.getElementById("audio-player");
       const currentAlbum = albumKeys[currentAlbumIndex];
       if (currentTrackIndex + 1 < albumData[currentAlbum].length) {
         currentTrackIndex++;
@@ -239,13 +213,6 @@
         currentTrackIndex = 0;
       }
       updateTrackInfo();
-      let timeout = setTimeout(() => {
-        if (audioElement.paused) {
-          console.log("3초 동안 재생되지 않음 → 다음 트랙으로 이동");
-          nextTrack();
-        }
-      }, 3000);
-      audioElement.addEventListener("playing", () => clearTimeout(timeout), { once: true });
     }
 
     function previousTrack() {
@@ -264,7 +231,7 @@
     }
 
     function playRandomTrack() {
-      if (albumKeys.length === 0 || Object.keys(albumData).length === 0) return;
+      if (albumKeys.length === 0) return;
       const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
       const randomTrackIndex = Math.floor(Math.random() * albumData[albumKeys[randomAlbumIndex]].length);
       currentAlbumIndex = randomAlbumIndex;
@@ -276,30 +243,13 @@
       fetchAlbumData();
       document.getElementById('search-bar').addEventListener('input', searchTracks);
 
-      // iOS Safari 첫 터치에서 resume/play 강제
       if (isIOS()) {
         document.body.addEventListener("touchend", async () => {
           const audioElement = document.getElementById("audio-player");
-          try {
-            await audioElement.play();
-            console.log("iOS Safari 재생 성공");
-          } catch (err) {
-            console.warn("iOS Safari 재생 실패", err);
-          }
+          try { await audioElement.play(); } catch {}
         }, { once: true });
       }
     };
-
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => {
-        document.getElementById('audio-player').play();
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        document.getElementById('audio-player').pause();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', previousTrack);
-      navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
-    }
   </script>
 </head>
 
@@ -311,7 +261,6 @@
         <input type="text" id="search-bar" placeholder="Search for albums or tracks...">
         <h3 id="track-title"></h3>
         <img id="album-cover" src="/public/none" alt="Album Cover" width="300" height="300" />
-        <!-- video 태그를 작게 표시 -->
         <video id="audio-player" playsinline controls></video>
         <div class="buttons">
           <button onclick="previousTrack()">Previous Track</button>
