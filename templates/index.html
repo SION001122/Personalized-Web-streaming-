@@ -189,8 +189,13 @@
       titleElement.textContent = displayName;
       audioElement.src = `/audio/${encoded}`;
       coverElement.src = `/cover/${encoded}`;
-      coverElement.onerror = () => { coverElement.src = '/public/none'; };
-
+      coverElement.onerror = () => {
+        // 이미 fallback 시도했으면 다시 안 함
+        if (!coverElement.dataset.fallback) {
+            coverElement.src = '/public/none';
+            coverElement.dataset.fallback = "true";  // 플래그 남김
+        }
+        };
       try {
         audioDuration = await fetchAudioDuration(currentTrack.path);
         audioElement.load();
