@@ -47,12 +47,10 @@
     let albumKeys = [];
     let currentAlbumIndex = 0;
     let currentTrackIndex = 0;
-    let audioDuration = 0;
 
-    // 무한스크롤 상태
     let flatTrackList = [];
     let loadedAlbumCount = 0;
-    const ALBUM_BATCH_SIZE = 10; // 앨범 10개 단위 로드
+    const ALBUM_BATCH_SIZE = 10;
 
     async function fetchAlbumData() {
       const response = await fetch('/albums_list');
@@ -108,14 +106,12 @@
         });
       });
 
-      renderSidebar(true); // 검색 시 전체 새로 그림
+      renderSidebar(true);
     }
 
     function renderSidebar(reset = false) {
       const sidebar = document.querySelector('.sidebar');
       const content = document.querySelector('.sidebar-content');
-
-      // 항상 먼저 비움 (겹침 방지)
       content.innerHTML = "";
 
       flatTrackList.forEach(item => {
@@ -131,12 +127,11 @@
         content.appendChild(div);
       });
 
-      // 무한 스크롤 감지
       sidebar.onscroll = () => {
         if (sidebar.scrollTop + sidebar.clientHeight >= sidebar.scrollHeight - 10) {
           if (loadedAlbumCount < albumKeys.length) {
             loadMoreAlbums();
-            renderSidebar(); // 새로 그려도 기존 DOM은 지우고 새로 생성
+            renderSidebar();
           }
         }
       };
@@ -162,18 +157,6 @@
       return null;
     }
 
-    async function fetchAudioDuration(path) {
-      try {
-        const filename = basename(path);
-        const res = await fetch(`/audio/duration/${encodeURIComponent(filename)}`);
-        if (!res.ok) throw new Error('Failed to fetch audio duration');
-        const { duration } = await res.json();
-        return Math.floor(duration - 2);
-      } catch (e) {
-        return 10;
-      }
-    }
-
     async function updateTrackInfo() {
       const audioElement = document.getElementById('audio-player');
       const titleElement = document.getElementById('track-title');
@@ -190,7 +173,6 @@
       audioElement.src = `/audio/${encoded}`;
       coverElement.src = `/cover/${encoded}`;
       coverElement.onerror = () => {
-        // 이미 fallback 시도했으면 다시 안 함
         if (!coverElement.dataset.fallback) {
           coverElement.src = '/public/none';
           coverElement.dataset.fallback = "true";
@@ -198,11 +180,22 @@
       };
 
       try {
-        audioDuration = await fetchAudioDuration(currentTrack.path);
         audioElement.load();
-        audioElement.play().catch(err => {
-          console.warn("Autoplay blocked:", err);
-        });
+
+        let gotUpdate = false;
+        const handler = () => { gotUpdate = true; audioElement.removeEventListener("timeupdate", handler); };
+        audioElement.addEventListener("timeupdate", handler);
+
+        audioElement.play().catch(() => {});
+
+        // 3초 동안 timeupdate 없으면 스킵
+        setTimeout(() => {
+          if (!gotUpdate) {
+            console.warn("재생 불가/멈춤 → 3초 후 강제 스킵");
+            nextTrack();
+          }
+        }, 1000);
+
       } catch (err) {}
     }
 
@@ -244,7 +237,6 @@
       updateTrackInfo();
     }
 
-    // 최초 사용자 입력으로 autoplay unlock
     function unlockAutoplay() {
       const audioElement = document.getElementById("audio-player");
       audioElement.play().catch(() => {});
@@ -254,59 +246,57 @@
     }
 
     window.onload = function () {
-    fetchAlbumData();
-    document.getElementById('search-bar').addEventListener('input', searchTracks);
+      fetchAlbumData();
+      document.getElementById('search-bar').addEventListener('input', searchTracks);
 
-    // 모든 기기에서 입력 이벤트로 autoplay 해제
-    document.body.addEventListener("click", unlockAutoplay, { once: true });
-    document.body.addEventListener("touchend", unlockAutoplay, { once: true });
-    document.body.addEventListener("keydown", unlockAutoplay, { once: true });
+      document.body.addEventListener("click", unlockAutoplay, { once: true });
+      document.body.addEventListener("touchend", unlockAutoplay, { once: true });
+      document.body.addEventListener("keydown", unlockAutoplay, { once: true });
 
-    const audioElement = document.getElementById("audio-player");
+      const audioElement = document.getElementById("audio-player");
 
-    // 트랙이 끝나면 자동 다음 곡 재생
-    audioElement.addEventListener("ended", () => {
-      nextTrack();
-    });
+      // 끝나면 다음 곡
+      audioElement.addEventListener("ended", () => {
+        nextTrack();
+      });
 
-    // currentTime이 3초 동안 멈추면 자동 다음 곡 재생
-    let lastTime = 0;
-    let stagnantSeconds = 0;
-    audioElement.addEventListener("timeupdate", () => {
-      // 3초간 멈춤 감지
-      if (audioElement.currentTime === lastTime && !audioElement.paused) {
-        stagnantSeconds++;
-        if (stagnantSeconds >= 3) {
-          console.warn("3초간 무음/정지 → 다음 곡으로 이동");
-          stagnantSeconds = 0;
+      let lastTime = 0;
+      let lastUpdate = Date.now();
+
+      audioElement.addEventListener("timeupdate", () => {
+        // 3초간 멈춤 감지
+        if (!audioElement.paused) {
+          if (audioElement.currentTime === lastTime) {
+            if (Date.now() - lastUpdate >= 1000) {
+              console.warn("재생바가 3초간 멈춤 → 다음 곡으로 이동");
+              lastUpdate = Date.now();
+              nextTrack();
+            }
+          } else {
+            lastTime = audioElement.currentTime;
+            lastUpdate = Date.now();
+          }
+        }
+
+        // 끝나기 0.5초 전에 다음 곡
+        if (
+          audioElement.duration &&
+          audioElement.duration - audioElement.currentTime <= 1.5
+        ) {
+          console.log("0.5초 남음 → 다음 곡으로 이동");
           nextTrack();
         }
-      } else {
-        stagnantSeconds = 0;
-        lastTime = audioElement.currentTime;
-      }
+      });
 
-      // 끝나기 0.5초 전에 다음 곡
-      if (
-        audioElement.duration &&
-        audioElement.duration - audioElement.currentTime <= 0.5
-      ) {
-        console.log("0.5초 남음 → 다음 곡으로 이동");
-        nextTrack();
-      }
-    });
-
-    // 14초 간격으로 서버 핑
-    setInterval(() => {
-      fetch("/ping", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      }).catch(() => {});
-    }, 14000);
-  };
-    </script>
-    
+      setInterval(() => {
+        fetch("/ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        }).catch(() => {});
+      }, 14000);
+    };
+  </script>
 </head>
 
 <body>
@@ -317,7 +307,7 @@
         <input type="text" id="search-bar" placeholder="Search for albums or tracks...">
         <h3 id="track-title"></h3>
         <img id="album-cover" src="/public/none" alt="Album Cover" width="300" height="300" />
-        <video id="audio-player" playsinline controls></video>
+        <audio id="audio-player" playsinline controls></audio>
         <div class="buttons">
           <button onclick="previousTrack()">Previous Track</button>
           <button onclick="nextTrack()">Next Track</button>
