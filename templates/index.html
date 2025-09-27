@@ -192,10 +192,11 @@
       coverElement.onerror = () => {
         // 이미 fallback 시도했으면 다시 안 함
         if (!coverElement.dataset.fallback) {
-            coverElement.src = '/public/none';
-            coverElement.dataset.fallback = "true";  // 플래그 남김
+          coverElement.src = '/public/none';
+          coverElement.dataset.fallback = "true";
         }
-        };
+      };
+
       try {
         audioDuration = await fetchAudioDuration(currentTrack.path);
         audioElement.load();
@@ -252,25 +253,50 @@
       document.body.removeEventListener("keydown", unlockAutoplay);
     }
 
-    window.onload = function () {
-      fetchAlbumData();
-      document.getElementById('search-bar').addEventListener('input', searchTracks);
+  window.onload = function () {
+    fetchAlbumData();
+    document.getElementById('search-bar').addEventListener('input', searchTracks);
 
-      // 모든 기기에서 입력 이벤트로 autoplay 해제
-      document.body.addEventListener("click", unlockAutoplay, { once: true });
-      document.body.addEventListener("touchend", unlockAutoplay, { once: true });
-      document.body.addEventListener("keydown", unlockAutoplay, { once: true });
+    // 모든 기기에서 입력 이벤트로 autoplay 해제
+    document.body.addEventListener("click", unlockAutoplay, { once: true });
+    document.body.addEventListener("touchend", unlockAutoplay, { once: true });
+    document.body.addEventListener("keydown", unlockAutoplay, { once: true });
 
-      //  14초 간격으로 서버 핑
-      setInterval(() => {
-        fetch("/ping", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({})
-        }).catch(() => {});
-        }, 14000);
-    };
-  </script>
+    const audioElement = document.getElementById("audio-player");
+
+    // 트랙이 끝나면 자동 다음 곡 재생
+    audioElement.addEventListener("ended", () => {
+      nextTrack();
+    });
+
+    // currentTime이 3초 동안 멈추면 자동 다음 곡 재생
+    let lastTime = 0;
+    let stagnantSeconds = 0;
+    audioElement.addEventListener("timeupdate", () => {
+      if (audioElement.currentTime === lastTime) {
+        stagnantSeconds++;
+        if (stagnantSeconds >= 3) {
+          console.warn("3초간 무음/정지 → 다음 곡으로 이동");
+          stagnantSeconds = 0;
+          nextTrack();
+        }
+      } else {
+        stagnantSeconds = 0;
+        lastTime = audioElement.currentTime;
+      }
+    });
+
+    // 14초 간격으로 서버 핑
+    setInterval(() => {
+      fetch("/ping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      }).catch(() => {});
+    }, 14000);
+  };
+    </script>
+    
 </head>
 
 <body>
