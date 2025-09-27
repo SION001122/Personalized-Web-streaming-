@@ -1,10 +1,9 @@
 html {
   --bg: #000000;
-  --fg: #ffffff;
+  --fg: #ffffff; 
 }
 
-html,
-body {
+html, body {
   padding: 0;
   margin: 0;
   width: 100vw;
@@ -38,7 +37,6 @@ button {
   &:hover {
     border-color: #ffffff;
   }
-
   &:active {
     border-color: #888888;
     background-color: #444444;
@@ -59,7 +57,7 @@ input[type="text"]:focus {
 }
 
 .title::before {
-  content: "🎧";
+  content:"🎧";
   font-size: 28px;
   margin-right: 8px;
 }
@@ -106,16 +104,32 @@ input[type="text"]:focus {
   left: 0;
   top: 0;
   right: 0;
+  height: 9999px; /* JS에서 totalHeight로 덮어씌워짐 */
 }
 
 .sidebar-track {
+  min-height: 30px;           /* 최소 높이만 보장 */
+  line-height: 1.4;           /* 글자 줄간격 */
   border-bottom: solid 1px #444444;
-  padding: 4px 8px;
-  word-break: break-word;
+  padding: 4px 8px;           /* 살짝 여백 */
+  background: #000000 !important;
+  color: #ffffff !important;
+  white-space: nowrap;        /* 한 줄 강제 */
+  overflow: hidden;
+  text-overflow: ellipsis;    /* 너무 길면 ... 처리 */
+}
 
-  &:hover {
-    background-color: #222222;
-  }
+
+.sidebar-album {
+  min-height: 30px;           /* 고정 대신 최소 높이 */
+  line-height: 1.4;
+  font-weight: bold;
+  padding: 6px 10px;
+  background: #222222 !important;
+  color: #ffffff !important;
+  white-space: normal;        /* 줄바꿈 허용 */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player {
@@ -142,7 +156,7 @@ input[type="text"]:focus {
 }
 
 .buttons {
-
+  
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -156,13 +170,11 @@ input[type="text"]:focus {
     flex: 1;
   }
 }
-
 .random-play {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  justify-content: center;
-  /* 버튼을 가운데 정렬 */
+  justify-content: center; /* 버튼을 가운데 정렬 */
   align-self: stretch;
   gap: 16px;
   height: 64px;
@@ -170,8 +182,7 @@ input[type="text"]:focus {
 }
 
 .random-play button {
-  flex: none;
-  /* 버튼 크기 고정 */
+  flex: none; /* 버튼 크기 고정 */
   padding: 8px 16px;
   font-size: 16px;
   color: #ffffff;
@@ -190,35 +201,62 @@ input[type="text"]:focus {
 }
 
 
+/* 태블릿 이하 (960px) */
 @media (max-width: 960px) {
   .content {
-    flex-direction: column;
+    flex-direction: column; /* 위/아래로 배치 */
+    max-width: 100%;        /* 화면 꽉 차게 */
+    width: 100%;
+    gap: 16px;
   }
 
   .sidebar {
     align-self: stretch;
-    width: unset;
-    min-height: 480px;
+    width: 100%;
+    min-height: 300px; /* 기본 높이 */
+    max-height: 400px; /* 너무 길어지지 않도록 */
   }
 
   .sidebar-content {
-    display: grid;
-    grid-template-columns: repeat(1, 1fr);
+    position: relative;
+    display: block; /* grid 대신 block으로 단순화 */
+    height: auto;   /* virtual scroll이 필요 없다면 */
   }
 }
 
+/* 모바일 (600px 이하) */
 @media (max-width: 600px) {
-  .content {
-    align-self: stretch;
-    margin: 0px 32px;
-    width: auto;
+  body {
+    gap: 32px; /* 전체 요소 간격 줄이기 */
   }
 
-  .title {
-    & h4 {
-      font-size: 18px;
-    }
+  .title h1 {
+    font-size: 20px; /* 타이틀 글자 줄임 */
   }
 
+  .sidebar-track,
+  .sidebar-album {
+    font-size: 14px;
+    line-height: 1.3;
+    padding: 4px 6px;
+  }
 
+  #track-title {
+    font-size: 20px; /* 현재 재생 곡 제목 */
+  }
+
+  #audio-player {
+    width: 100%;
+    height: 36px;
+  }
+
+  .buttons {
+    gap: 16px;
+    height: auto;
+    margin-top: 16px;
+  }
+
+  .random-play {
+    margin-top: 8px;
+  }
 }
