@@ -380,7 +380,7 @@ def get_duration(filename):
 
     return jsonify({"filename": os.path.basename(file_info["path"]), "duration": file_duration})
 
-app.config['SESSION_COOKIE_SECURE'] = True # HTTPS에서만 세션 쿠키 전송
+app.config['SESSION_COOKIE_SECURE'] = False # HTTPS에서만 세션 쿠키 전송
 app.config['SESSION_COOKIE_HTTPONLY'] = False # JavaScript에서 세션 쿠키 접근 불가
 #이렇게 설정하면 세션 쿠키가 HTTPS 프로토콜을 사용하는 경우에만 전송되며, JavaScript를 통해 세션 쿠키에 접근할 수 없습니다.
 #보안적으로는 좋고, 음악 재생에는 영향을 주지 않습니다.
@@ -411,3 +411,4 @@ if __name__ == "__main__":
     init_thread = threading.Thread(target=initialize, daemon=True)
     init_thread.start()
     app.run(host="0.0.0.0", debug=args.debug, threaded=True, port=8000)
+
