@@ -44,7 +44,7 @@ last_ping_time = {}
 
 # 청크 크기 설정
 CHUNK_SIZE = 512# 512kb 단위로 데이터를 전송
-
+FNAME_INDEX = {}
 # os.path.abspath 함수로 경로를 OS에 맞게 수정
 file_list_path = os.path.abspath("./audio_file_list.txt")
 audio_files = extract_audio_files(file_list_path)
@@ -239,125 +239,108 @@ def post_audio_duration():
 cleanup_thread = threading.Thread(target=terminate_inactive_processes_with_duration, daemon=True)
 cleanup_thread.start()
 
+from flask import Response, request
+from urllib.parse import unquote
+import unicodedata
+import re
+import os, subprocess, time
 
-@app.route("/audio/<filename>")
+def _norm_name(s: str) -> str:
+    # URL 디코드 → 유니코드 NFC 정규화 → 연속 공백 1개로
+    s = unquote(s)
+    s = unicodedata.normalize('NFC', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+from flask import request
+
+@app.route("/audio/<path:filename>")
 def stream_audio(filename):
-    filter_string = ''  # 필터가 없을 때 기본값은 빈 문자열
+    filename_norm = _norm_name(filename).lower()
 
-    selected_effects = request.args.get('effects', '')
-
-    # 음장 효과 필터 설정
-    filter_string = ''  # 필터가 없을 때 기본값은 빈 문자열
-    
+    selected_effects = request.args.get('effects', '') or ''
+    filter_string = ''
     if 'echo' in selected_effects:
-        filter_string += 'aecho=0.8:0.9:1000:0.3'  # 에코 필터 추가
+        filter_string += 'aecho=0.8:0.9:1000:0.3'
 
-
-    manage_process_list()  # 현재 실행 중인 프로세스 관리
+    manage_process_list()
     if len(process_list) >= max_processes:
-        return "Maximum number of processes running. Try again later.", 429  # Too many requests
-    
-    # 파일 정보 찾기
-    file_info = next((f for f in shuffled_audio_files if os.path.basename(f["path"]) == filename), None)
-    if file_info and os.path.exists(file_info["path"]):
-        print(f"Streaming file: {file_info['path']}")
-        if not os.path.basename(file_info["path"]) == filename:
-                return "Invalid file request", 400
-        # 파일의 길이 출력
-        print(f"File duration: {get_audio_duration(file_info['path'])} seconds")
-        def generate():
-            file_path = os.path.abspath(file_info["path"])
-            # 파일 확장자 추출
-            file_extension = os.path.splitext(file_path)[1].lower()
-            cpu_count = os.cpu_count()
-            threads = str(max(1, cpu_count // 2))  # 최소 1개의 쓰레드 보장
-            # 확장자에 따른 FFmpeg 명령어 설정
-            if file_extension == '.aiff':
-                #command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-sample_fmt', 's32', '-threads', str(threads)]
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac', '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension in ['.dsf', '.dff']:
-                command = [
-                    'ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',
-                    '-sample_fmt', 's32',  # 32비트 PCM
-                    '-threads', str(threads)
-                ]
-            elif file_extension == '.wav':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.flac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.mp3':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.m4a':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.ogg':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.opus':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.wma':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.mka':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.mpc':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.ape':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.m4b':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.m4p':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.m4r':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.aac':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.aa':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            elif file_extension == '.aax':
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            else:
-                command = ['ffmpeg', '-i', file_path, '-map', '0:a', '-f', 'flac', '-c:a', 'flac',  '-strict', 'experimental', '-threads', str(threads)]
-            # 음장 효과 필터가 있을 경우 명령어에 필터 추가
-            if filter_string:
-                command.extend(['-af', filter_string])
+        return "Maximum number of processes running. Try again later.", 429
 
-            
-            command.append('-')  # FFmpeg 출력 설정을 파이프로 처리
-                
-            # FFmpeg 프로세스를 stdout으로 실행
-            current_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            process_list.append((current_process, time.time()))  # 프로세스 추가 및 시간 기록
-            try:
-                while True: # 데이터를 전송할 때마다 last_access 갱신
-                    chunk = current_process.stdout.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    yield chunk
+    # 1차: 인덱스 조회
+    file_info = FNAME_INDEX.get(filename_norm)
 
-                    # 데이터를 전송할 때마다 last_access 갱신
-                    for i, (proc, last_access) in enumerate(process_list):
-                        if proc == current_process:
-                            process_list[i] = (proc, time.time())  # 데이터 전송 중이므로 갱신
+    # 2차: 폴백 선형 탐색(인덱스 미구축/미스매치 대비)
+    if not file_info:
+        for f in shuffled_audio_files:
+            base = _norm_name(os.path.basename(f["path"])).lower()
+            if base == filename_norm:
+                file_info = f
+                break
 
-                remaining_data = current_process.stdout.read()
-                while remaining_data:
-                    yield remaining_data
-                    remaining_data = current_process.stdout.read()
+    if not file_info or not os.path.exists(file_info["path"]):
+        return "File not found", 404
 
-            except Exception as e:
-                print(f"Error while streaming: {e}")
+    # UA 확인 (아이폰/아이패드면 ALAC로)
+    ua = request.headers.get("User-Agent", "").lower()
+    if "iphone" in ua or "ipad" in ua or "macintosh" in ua:
+        mimetype = "audio/wav"
+        ffmpeg_cmd = [
+            "ffmpeg", "-i", os.path.abspath(file_info["path"]),
+            "-c:a", "pcm_s16le", "-f", "wav", "-"
+        ]
+        print("iOS or macOS device detected, using WAV format", flush=True)
+    else:
+        mimetype = "audio/flac"
+        ffmpeg_cmd = [
+            "ffmpeg", "-i", os.path.abspath(file_info["path"]),
+            "-map", "0:a", "-c:a", "flac", "-f", "flac", "-"
+        ]
+        print("Non-iOS device detected, using FLAC format", flush=True)
 
-            finally:
+    # 공통 옵션 추가
+    cpu_count = os.cpu_count() or 1
+    threads = str(max(1, cpu_count // 2))
+    ffmpeg_cmd.extend(["-threads", threads])
+
+    if filter_string:
+        ffmpeg_cmd.extend(["-af", filter_string])
+
+    def generate():
+        current_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process_list.append((current_process, time.time()))
+        try:
+            while True:
+                chunk = current_process.stdout.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+                # last_access 갱신
+                for i, (proc, last_access) in enumerate(process_list):
+                    if proc == current_process:
+                        process_list[i] = (proc, time.time())
+            remaining = current_process.stdout.read()
+            while remaining:
+                yield remaining
+                remaining = current_process.stdout.read()
+        finally:
+            if current_process.stdout:
                 current_process.stdout.close()
-                current_process.wait()
-
-                error = current_process.stderr.read().decode(errors="ignore")
+            current_process.wait()
+            if current_process.stderr:
+                err = current_process.stderr.read().decode(errors="ignore")
                 if current_process.returncode != 0:
-                    print(f"FFmpeg error (Exit Code {current_process.returncode}): {error}")
-                manage_process_list()
-        # Cache-Control과 Gzip/Brotli 압축 활성화
-        response = Response(generate(), mimetype="audio/flac")
-        response.headers['Cache-Control'] = 'public, max-age=3600'
+                    print(f"FFmpeg error (Exit Code {current_process.returncode}): {err}")
+                current_process.stderr.close()
+            manage_process_list()
 
-        return response
+    resp = Response(generate(), mimetype=mimetype)
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+
+
+
 
 @app.route("/albums_list", methods=["GET"])
 def albums_list():
@@ -369,29 +352,35 @@ def albums_list():
     except FileNotFoundError:
         return jsonify({"error": "Albums list not found"}), 404 #에러시 404 표시
 
-@app.route("/audio/duration/<filename>", methods=["GET"])
+@app.route("/audio/duration/<path:filename>", methods=["GET"])
 def get_duration(filename):
     """
     특정 음원 파일의 총 길이를 반환하는 API.
+    stream_audio와 동일한 정규화/매칭 로직을 사용.
     """
-    # 파일 정보 찾기
-    file_info = next((f for f in shuffled_audio_files if os.path.basename(f["path"]) == filename), None)
+    filename_norm = _norm_name(filename).lower()
+
+    # 1차: 인덱스 조회
+    file_info = FNAME_INDEX.get(filename_norm)
+
+    # 2차: 폴백 선형 탐색
+    if not file_info:
+        for f in shuffled_audio_files:
+            base = _norm_name(os.path.basename(f["path"])).lower()
+            if base == filename_norm:
+                file_info = f
+                break
 
     if not file_info or not os.path.exists(file_info["path"]):
         return jsonify({"error": "File not found"}), 404
 
-    # 음원 파일 길이 가져오기
     file_duration = get_audio_duration(file_info["path"])
     if file_duration is None:
         return jsonify({"error": "Could not retrieve duration"}), 500
 
-    # 길이를 JSON 형식으로 반환
-    return jsonify({"filename": filename, "duration": file_duration})
+    return jsonify({"filename": os.path.basename(file_info["path"]), "duration": file_duration})
 
-
-
-    return "File not found", 404
-app.config['SESSION_COOKIE_SECURE'] = False # HTTPS에서만 세션 쿠키 전송
+app.config['SESSION_COOKIE_SECURE'] = True # HTTPS에서만 세션 쿠키 전송
 app.config['SESSION_COOKIE_HTTPONLY'] = False # JavaScript에서 세션 쿠키 접근 불가
 #이렇게 설정하면 세션 쿠키가 HTTPS 프로토콜을 사용하는 경우에만 전송되며, JavaScript를 통해 세션 쿠키에 접근할 수 없습니다.
 #보안적으로는 좋고, 음악 재생에는 영향을 주지 않습니다.
@@ -412,6 +401,9 @@ def initialize():
     with init_lock:
         if initindex == 0:
             save_json_to_file(file_list_path, output_json_path)
+            for f in shuffled_audio_files:
+                base = _norm_name(os.path.basename(f["path"])).lower()
+                FNAME_INDEX[base] = f
             initindex = 1
 if __name__ == "__main__":
     heartbeat_thread = threading.Thread(target=heartbeat_checker)
