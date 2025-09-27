@@ -253,7 +253,7 @@
       document.body.removeEventListener("keydown", unlockAutoplay);
     }
 
-  window.onload = function () {
+    window.onload = function () {
     fetchAlbumData();
     document.getElementById('search-bar').addEventListener('input', searchTracks);
 
@@ -273,7 +273,8 @@
     let lastTime = 0;
     let stagnantSeconds = 0;
     audioElement.addEventListener("timeupdate", () => {
-      if (audioElement.currentTime === lastTime) {
+      // 3초간 멈춤 감지
+      if (audioElement.currentTime === lastTime && !audioElement.paused) {
         stagnantSeconds++;
         if (stagnantSeconds >= 3) {
           console.warn("3초간 무음/정지 → 다음 곡으로 이동");
@@ -283,6 +284,15 @@
       } else {
         stagnantSeconds = 0;
         lastTime = audioElement.currentTime;
+      }
+
+      // 끝나기 0.5초 전에 다음 곡
+      if (
+        audioElement.duration &&
+        audioElement.duration - audioElement.currentTime <= 0.5
+      ) {
+        console.log("0.5초 남음 → 다음 곡으로 이동");
+        nextTrack();
       }
     });
 
