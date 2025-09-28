@@ -19,18 +19,24 @@
       width: 100%;
     }
     .sidebar-track {
-      padding: 4px 10px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
-      background: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    padding: 4px 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    background: #fff;
+
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-overflow: clip;
     }
+
     .sidebar-album {
-      font-weight: bold;
-      background: #f0f0f0;
-      padding: 4px 10px;
+    font-weight: bold;
+    background: #f0f0f0;
+    padding: 4px 10px;
+
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-overflow: clip;
     }
     #audio-player {
       margin-top: 10px;
@@ -38,12 +44,15 @@
       height: 40px;
     }
   </style>
+
+  <!-- ✅ MiniSearch CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/minisearch@6.3.0/dist/umd/index.min.js"></script>
+
 <script>
     const basename = (p) => p.split(/[/\\]/).pop();
     const stripExt = (name) => name.replace(/\.[^.]+$/, "");
   
     let albumData = {};
-    let searchIndex = [];
     let albumKeys = [];
     let currentAlbumIndex = 0;
     let currentTrackIndex = 0;
@@ -51,6 +60,8 @@
     let flatTrackList = [];
     let loadedAlbumCount = 0;
     const ALBUM_BATCH_SIZE = 10;
+
+    let miniSearch; // ✅ MiniSearch 인스턴스
   
     async function fetchAlbumData() {
       const response = await fetch('/albums_list');
@@ -75,29 +86,52 @@
     }
   
     function createSearchIndex(data) {
-      searchIndex = [];
+      let docs = [];
       Object.keys(data).forEach(albumKey => {
         data[albumKey].forEach(track => {
-          searchIndex.push({
-            album: albumKey.toLowerCase(),
-            track: track.name.toLowerCase(),
+          docs.push({
+            id: `${albumKey}_${track.path}`,
+            album: albumKey,
+            track: track.name,
             path: track.path
           });
         });
       });
+
+      // ✅ MiniSearch 인스턴스 생성
+      miniSearch = new MiniSearch({
+        fields: ['album', 'track'],   // 검색할 필드
+        storeFields: ['album', 'track', 'path'], // 결과에 포함할 필드
+      });
+
+      miniSearch.addAll(docs);
     }
   
-    function searchTracks() {
-      const query = document.getElementById('search-bar').value.toLowerCase();
-      const filteredTracks = searchIndex.filter(item =>
-        item.album.includes(query) || item.track.includes(query)
-      );
+    function searchTracks(query) {
+      if (!miniSearch) return;
+
+      if (!query) {
+        // 검색어 없으면 전체 다시 로드
+        flatTrackList = [];
+        albumKeys.forEach(albumKey => {
+          flatTrackList.push({ type: "album", name: albumKey });
+          albumData[albumKey].forEach(track => {
+            flatTrackList.push({ type: "track", album: albumKey, track });
+          });
+        });
+        renderSidebar(true);
+        return;
+      }
+
+      // ✅ 오타 허용 + 접두사 검색
+      const results = miniSearch.search(query, { fuzzy: 0.2, prefix: true });
+
       const filteredData = {};
-      filteredTracks.forEach(item => {
+      results.forEach(item => {
         if (!filteredData[item.album]) filteredData[item.album] = [];
         filteredData[item.album].push({ name: item.track, path: item.path });
       });
-  
+
       flatTrackList = [];
       Object.keys(filteredData).forEach(albumKey => {
         flatTrackList.push({ type: "album", name: albumKey });
@@ -105,7 +139,7 @@
           flatTrackList.push({ type: "track", album: albumKey, track });
         });
       });
-  
+
       renderSidebar(true);
     }
   
@@ -228,25 +262,16 @@
     }
   
     function playRandomTrack() {
-    if (albumKeys.length === 0) return;
-
-    // 무작위 앨범 선택
-    const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
-    const albumKey = albumKeys[randomAlbumIndex];
-    const tracks = albumData[albumKey];
-    if (!tracks || tracks.length === 0) return;
-
-    // 무작위 트랙 선택
-    const randomTrackIndex = Math.floor(Math.random() * tracks.length);
-    const track = tracks[randomTrackIndex];
-
-    // 현재 인덱스 갱신 후 재생
-    currentAlbumIndex = randomAlbumIndex;
-    currentTrackIndex = randomTrackIndex;
-    updateTrackInfo();
+      if (albumKeys.length === 0) return;
+      const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
+      const albumKey = albumKeys[randomAlbumIndex];
+      const tracks = albumData[albumKey];
+      if (!tracks || tracks.length === 0) return;
+      const randomTrackIndex = Math.floor(Math.random() * tracks.length);
+      currentAlbumIndex = randomAlbumIndex;
+      currentTrackIndex = randomTrackIndex;
+      updateTrackInfo();
     }
-
-
   
     function unlockAutoplay() {
       const audioElement = document.getElementById("audio-player");
@@ -263,7 +288,15 @@
   
     window.onload = function () {
       fetchAlbumData();
-      document.getElementById('search-bar').addEventListener('input', searchTracks);
+
+      // ✅ debounce 추가
+      let searchTimeout;
+      document.getElementById('search-bar').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchTracks(e.target.value.trim());
+        }, 200);
+      });
   
       document.body.addEventListener("click", unlockAutoplay, { once: true });
       document.body.addEventListener("touchend", unlockAutoplay, { once: true });
@@ -294,7 +327,6 @@
           : 0;
         const durClient = audioElement.duration || 0;
         
-        // ✅ 항상 짧은 쪽 + 0.5초
         const candidates = [durServer, durClient].filter(v => v && !isNaN(v));
         const dur = candidates.length ? Math.min(...candidates) + 0.5 : 0;
   
