@@ -228,13 +228,25 @@
     }
   
     function playRandomTrack() {
-      if (albumKeys.length === 0) return;
-      const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
-      const randomTrackIndex = Math.floor(Math.random() * albumData[albumKeys[randomAlbumIndex]].length);
-      currentAlbumIndex = randomAlbumIndex;
-      currentTrackIndex = randomTrackIndex;
-      updateTrackInfo();
+    if (albumKeys.length === 0) return;
+
+    // 무작위 앨범 선택
+    const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
+    const albumKey = albumKeys[randomAlbumIndex];
+    const tracks = albumData[albumKey];
+    if (!tracks || tracks.length === 0) return;
+
+    // 무작위 트랙 선택
+    const randomTrackIndex = Math.floor(Math.random() * tracks.length);
+    const track = tracks[randomTrackIndex];
+
+    // 현재 인덱스 갱신 후 재생
+    currentAlbumIndex = randomAlbumIndex;
+    currentTrackIndex = randomTrackIndex;
+    updateTrackInfo();
     }
+
+
   
     function unlockAutoplay() {
       const audioElement = document.getElementById("audio-player");
@@ -260,6 +272,17 @@
       const audioElement = document.getElementById("audio-player");
   
       audioElement.addEventListener("ended", () => {
+        console.log("곡 종료 이벤트 → 다음 곡");
+        nextTrack();
+      });
+  
+      audioElement.addEventListener("stalled", () => {
+        console.warn("스트리밍 stalled → 다음 곡");
+        nextTrack();
+      });
+  
+      audioElement.addEventListener("error", () => {
+        console.error("오디오 재생 오류 → 다음 곡");
         nextTrack();
       });
   
@@ -270,9 +293,10 @@
           ? parseFloat(audioElement.dataset.duration)
           : 0;
         const durClient = audioElement.duration || 0;
-        const dur = (durServer && durClient)
-          ? Math.min(durServer, durClient)
-          : (durServer || durClient);
+        
+        // ✅ 항상 짧은 쪽 + 0.5초
+        const candidates = [durServer, durClient].filter(v => v && !isNaN(v));
+        const dur = candidates.length ? Math.min(...candidates) + 0.5 : 0;
   
         if (!dur || isNaN(dur) || dur === 0) {
           if (audioElement.currentTime <= 0.01) {
@@ -315,13 +339,12 @@
           nextTrack();
         }
       });
-
-      // 강제 검사 타이머 추가
+  
       setInterval(() => {
         if (justLoaded) return;
         const audioElement = document.getElementById("audio-player");
         if (!audioElement) return;
-
+  
         if ((isNaN(audioElement.duration) || audioElement.duration === 0) &&
             audioElement.currentTime <= 0.01 &&
             !audioElement.paused) {
