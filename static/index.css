@@ -108,30 +108,31 @@ input[type="text"]:focus {
 }
 
 .sidebar-track {
-  min-height: 30px;           /* 최소 높이만 보장 */
-  line-height: 1.4;           /* 글자 줄간격 */
+  min-height: 30px;
+  line-height: 1.4;
   border-bottom: solid 1px #444444;
-  padding: 4px 8px;           /* 살짝 여백 */
+  padding: 4px 8px;
   background: #000000 !important;
   color: #ffffff !important;
-  white-space: nowrap;        /* 한 줄 강제 */
-  overflow: hidden;
-  text-overflow: ellipsis;    /* 너무 길면 ... 처리 */
+
+  white-space: normal;      /* ✅ 줄바꿈 허용 */
+  overflow-wrap: break-word;/* ✅ 긴 단어도 강제로 줄바꿈 */
+  text-overflow: clip;      /* ✅ ... 대신 잘리지 않게 */
 }
 
 
 .sidebar-album {
-  min-height: 30px;           /* 고정 대신 최소 높이 */
+  min-height: 30px;
   line-height: 1.4;
   font-weight: bold;
   padding: 6px 10px;
   background: #222222 !important;
   color: #ffffff !important;
-  white-space: normal;        /* 줄바꿈 허용 */
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
+  white-space: normal;      
+  overflow-wrap: break-word;
+  text-overflow: clip;
+}
 .player {
   display: flex;
   flex-direction: column;
