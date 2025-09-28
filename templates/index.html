@@ -15,28 +15,22 @@
       border: 1px solid #ccc;
       -webkit-overflow-scrolling: touch;
     }
-    .sidebar-content {
-      width: 100%;
-    }
     .sidebar-track {
-    padding: 4px 10px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    background: #fff;
-
-    white-space: normal;
-    overflow-wrap: break-word;
-    text-overflow: clip;
+      padding: 4px 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      background: #fff;
+      white-space: normal;
+      overflow-wrap: break-word;
+      text-overflow: clip;
     }
-
     .sidebar-album {
-    font-weight: bold;
-    background: #f0f0f0;
-    padding: 4px 10px;
-
-    white-space: normal;
-    overflow-wrap: break-word;
-    text-overflow: clip;
+      font-weight: bold;
+      background: #f0f0f0;
+      padding: 4px 10px;
+      white-space: normal;
+      overflow-wrap: break-word;
+      text-overflow: clip;
     }
     #audio-player {
       margin-top: 10px;
@@ -45,35 +39,49 @@
     }
   </style>
 
-  <!-- ✅ MiniSearch CDN -->
+  <!-- MiniSearch -->
   <script src="https://cdn.jsdelivr.net/npm/minisearch@6.3.0/dist/umd/index.min.js"></script>
+  <!-- Clusterize.js -->
+  <script src="https://unpkg.com/clusterize.js/clusterize.min.js"></script>
 
 <script>
     const basename = (p) => p.split(/[/\\]/).pop();
     const stripExt = (name) => name.replace(/\.[^.]+$/, "");
-  
+    const escapeHtml = (s) =>
+      String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
     let albumData = {};
     let albumKeys = [];
     let currentAlbumIndex = 0;
     let currentTrackIndex = 0;
-  
+
     let flatTrackList = [];
     let loadedAlbumCount = 0;
     const ALBUM_BATCH_SIZE = 10;
 
-    let miniSearch; // ✅ MiniSearch 인스턴스
-  
+    let miniSearch;
+    let clusterize;
+
     async function fetchAlbumData() {
-      const response = await fetch('/albums_list');
-      albumData = await response.json();
-      albumKeys = Object.keys(albumData);
-      createSearchIndex(albumData);
-  
-      loadMoreAlbums();
-      renderSidebar();
-      updateTrackInfo();
+    const response = await fetch('/albums_list');
+    albumData = await response.json();
+    albumKeys = Object.keys(albumData);
+    createSearchIndex(albumData);
+
+    // 한방에 전부 넣기
+    flatTrackList = [];
+    albumKeys.forEach(albumKey => {
+        flatTrackList.push({ type: "album", name: albumKey });
+        albumData[albumKey].forEach(track => {
+        flatTrackList.push({ type: "track", album: albumKey, track });
+        });
+    });
+
+    renderSidebar(true);
+    updateTrackInfo();
     }
-  
+
+
     function loadMoreAlbums() {
       const nextAlbums = albumKeys.slice(loadedAlbumCount, loadedAlbumCount + ALBUM_BATCH_SIZE);
       nextAlbums.forEach(albumKey => {
@@ -84,7 +92,7 @@
       });
       loadedAlbumCount += nextAlbums.length;
     }
-  
+
     function createSearchIndex(data) {
       let docs = [];
       Object.keys(data).forEach(albumKey => {
@@ -98,20 +106,18 @@
         });
       });
 
-      // ✅ MiniSearch 인스턴스 생성
       miniSearch = new MiniSearch({
-        fields: ['album', 'track'],   // 검색할 필드
-        storeFields: ['album', 'track', 'path'], // 결과에 포함할 필드
+        fields: ['album', 'track'],
+        storeFields: ['album', 'track', 'path'],
       });
 
       miniSearch.addAll(docs);
     }
-  
+
     function searchTracks(query) {
       if (!miniSearch) return;
 
       if (!query) {
-        // 검색어 없으면 전체 다시 로드
         flatTrackList = [];
         albumKeys.forEach(albumKey => {
           flatTrackList.push({ type: "album", name: albumKey });
@@ -123,7 +129,6 @@
         return;
       }
 
-      // ✅ 오타 허용 + 접두사 검색
       const results = miniSearch.search(query, { fuzzy: 0.2, prefix: true });
 
       const filteredData = {};
@@ -142,35 +147,30 @@
 
       renderSidebar(true);
     }
-  
+
     function renderSidebar(reset = false) {
-      const sidebar = document.querySelector('.sidebar');
-      const content = document.querySelector('.sidebar-content');
-      content.innerHTML = "";
-  
-      flatTrackList.forEach(item => {
-        const div = document.createElement("div");
+      const rows = flatTrackList.map(item => {
         if (item.type === "album") {
-          div.className = "sidebar-album";
-          div.textContent = item.name;
+          return `<div class="sidebar-album">${escapeHtml(item.name)}</div>`;
         } else {
-          div.className = "sidebar-track";
-          div.textContent = item.track.name;
-          div.onclick = () => playTrackByPath(item.track.path);
+          // onclick 대신 data-path + 이벤트 위임 사용
+          return `<div class="sidebar-track" data-path="${escapeHtml(item.track.path)}">${escapeHtml(item.track.name)}</div>`;
         }
-        content.appendChild(div);
       });
-  
-      sidebar.onscroll = () => {
-        if (sidebar.scrollTop + sidebar.clientHeight >= sidebar.scrollHeight - 10) {
-          if (loadedAlbumCount < albumKeys.length) {
-            loadMoreAlbums();
-            renderSidebar();
-          }
-        }
-      };
+
+      if (!clusterize) {
+        clusterize = new Clusterize({
+          rows,
+          scrollId: 'scrollArea',
+          contentId: 'contentArea',
+          rows_in_block: 30,
+          blocks_in_cluster: 2
+        });
+      } else {
+        clusterize.update(rows);
+      }
     }
-  
+
     function playTrackByPath(path) {
       const foundTrack = findTrackByPath(path);
       if (foundTrack) {
@@ -180,7 +180,7 @@
         updateTrackInfo();
       }
     }
-  
+
     function findTrackByPath(path) {
       for (const albumKey of albumKeys) {
         const trackIndex = albumData[albumKey].findIndex((track) => track.path === path);
@@ -190,19 +190,19 @@
       }
       return null;
     }
-  
+
     async function updateTrackInfo() {
       const audioElement = document.getElementById('audio-player');
       const titleElement = document.getElementById('track-title');
       const coverElement = document.getElementById('album-cover');
-  
+
       const currentAlbum = albumKeys[currentAlbumIndex];
       const currentTrack = albumData[currentAlbum][currentTrackIndex];
-  
+
       const fileWithExt = basename(currentTrack.path);
       const encoded = encodeURIComponent(fileWithExt);
       const displayName = stripExt(fileWithExt);
-  
+
       titleElement.textContent = displayName;
       audioElement.src = `/audio/${encoded}`;
       coverElement.src = `/cover/${encoded}`;
@@ -212,12 +212,12 @@
           coverElement.dataset.fallback = "true";
         }
       };
-  
+
       try {
         audioElement.load();
         justLoaded = true;
         setTimeout(() => { justLoaded = false; }, 2000);
-  
+
         fetch(`/audio/duration/${encoded}`)
           .then(res => res.json())
           .then(data => {
@@ -227,11 +227,11 @@
             }
           })
           .catch(() => {});
-  
+
         audioElement.play().catch(() => {});
       } catch (err) {}
     }
-  
+
     function nextTrack() {
       const currentAlbum = albumKeys[currentAlbumIndex];
       if (currentTrackIndex + 1 < albumData[currentAlbum].length) {
@@ -245,7 +245,7 @@
       }
       updateTrackInfo();
     }
-  
+
     function previousTrack() {
       if (currentTrackIndex > 0) {
         currentTrackIndex--;
@@ -260,7 +260,7 @@
       }
       updateTrackInfo();
     }
-  
+
     function playRandomTrack() {
       if (albumKeys.length === 0) return;
       const randomAlbumIndex = Math.floor(Math.random() * albumKeys.length);
@@ -272,7 +272,7 @@
       currentTrackIndex = randomTrackIndex;
       updateTrackInfo();
     }
-  
+
     function unlockAutoplay() {
       const audioElement = document.getElementById("audio-player");
       audioElement.play().catch(() => {});
@@ -280,16 +280,16 @@
       document.body.removeEventListener("touchend", unlockAutoplay);
       document.body.removeEventListener("keydown", unlockAutoplay);
     }
-  
+
     let lastTime = 0;
     let lastUpdate = Date.now();
     let zeroStart = null;
     let justLoaded = false;
-  
+
     window.onload = function () {
       fetchAlbumData();
 
-      // ✅ debounce 추가
+      // 검색 디바운스
       let searchTimeout;
       document.getElementById('search-bar').addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
@@ -297,97 +297,34 @@
           searchTracks(e.target.value.trim());
         }, 200);
       });
-  
+
+      // 클릭 이벤트 위임 (Clusterize가 콘텐츠를 갈아끼워도 동작)
+      document.getElementById('contentArea').addEventListener('click', (e) => {
+        const el = e.target.closest('.sidebar-track');
+        if (!el) return;
+        const path = el.getAttribute('data-path');
+        if (path) playTrackByPath(path);
+      });
+
       document.body.addEventListener("click", unlockAutoplay, { once: true });
       document.body.addEventListener("touchend", unlockAutoplay, { once: true });
       document.body.addEventListener("keydown", unlockAutoplay, { once: true });
-  
+
       const audioElement = document.getElementById("audio-player");
-  
-      audioElement.addEventListener("ended", () => {
-        console.log("곡 종료 이벤트 → 다음 곡");
-        nextTrack();
-      });
-  
-      audioElement.addEventListener("stalled", () => {
-        console.warn("스트리밍 stalled → 다음 곡");
-        nextTrack();
-      });
-  
-      audioElement.addEventListener("error", () => {
-        console.error("오디오 재생 오류 → 다음 곡");
-        nextTrack();
-      });
-  
+
+      audioElement.addEventListener("ended", () => { nextTrack(); });
+      audioElement.addEventListener("stalled", () => { nextTrack(); });
+      audioElement.addEventListener("error", () => { nextTrack(); });
+
       audioElement.addEventListener("timeupdate", () => {
         if (justLoaded) return;
-  
-        const durServer = audioElement.dataset.duration
-          ? parseFloat(audioElement.dataset.duration)
-          : 0;
+        const durServer = audioElement.dataset.duration ? parseFloat(audioElement.dataset.duration) : 0;
         const durClient = audioElement.duration || 0;
-        
         const candidates = [durServer, durClient].filter(v => v && !isNaN(v));
         const dur = candidates.length ? Math.min(...candidates) + 0.5 : 0;
-  
-        if (!dur || isNaN(dur) || dur === 0) {
-          if (audioElement.currentTime <= 0.01) {
-            if (!zeroStart) zeroStart = Date.now();
-            else if (Date.now() - zeroStart >= 1500) {
-              console.warn("00/00 상태에서 1.5초 정체 → 다음 곡");
-              zeroStart = null;
-              nextTrack();
-            }
-          }
-          return;
-        }
-  
-        if (audioElement.currentTime <= 0.01) {
-          if (!zeroStart) zeroStart = Date.now();
-          else if (Date.now() - zeroStart >= 1500) {
-            console.warn("0초에서 1.5초 정체 → 다음 곡");
-            zeroStart = null;
-            nextTrack();
-          }
-        } else {
-          zeroStart = null;
-        }
-  
-        if (!audioElement.paused) {
-          if (audioElement.currentTime === lastTime) {
-            if (Date.now() - lastUpdate >= 1500) {
-              console.warn("재생바 1.5초 이상 정체 → 다음 곡");
-              lastUpdate = Date.now();
-              nextTrack();
-            }
-          } else {
-            lastTime = audioElement.currentTime;
-            lastUpdate = Date.now();
-          }
-        }
-  
-        if (dur - audioElement.currentTime <= 1.5) {
-          console.log("끝나기 직전 → 다음 곡");
-          nextTrack();
-        }
+
+        if (dur - audioElement.currentTime <= 1.5) { nextTrack(); }
       });
-  
-      setInterval(() => {
-        if (justLoaded) return;
-        const audioElement = document.getElementById("audio-player");
-        if (!audioElement) return;
-  
-        if ((isNaN(audioElement.duration) || audioElement.duration === 0) &&
-            audioElement.currentTime <= 0.01 &&
-            !audioElement.paused) {
-          if (!zeroStart) zeroStart = Date.now();
-          else if (Date.now() - zeroStart >= 1500) {
-            console.warn("강제 검사: 0초에서 1.5초 정체 → 다음 곡");
-            zeroStart = null;
-            nextTrack();
-          }
-        }
-      }, 1000);
     };
 </script>
 </head>
@@ -406,8 +343,11 @@
           <button onclick="nextTrack()">Next Track</button>
         </div>
       </div>
-      <div class="sidebar">
-        <div class="sidebar-content"></div>
+      <!-- Clusterize 요구 구조 -->
+      <div id="scrollArea" class="sidebar clusterize-scroll">
+        <div id="contentArea" class="sidebar-content clusterize-content">
+          <div class="clusterize-no-data">Loading…</div>
+        </div>
       </div>
       <div class="random-play">
         <button onclick="playRandomTrack()">Random Play</button>
