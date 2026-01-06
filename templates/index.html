@@ -216,7 +216,7 @@
       try {
         audioElement.load();
         justLoaded = true;
-        setTimeout(() => { justLoaded = false; }, 2000);
+        setTimeout(() => { justLoaded = false; }, 500);
 
         fetch(`/audio/duration/${encoded}`)
           .then(res => res.json())
@@ -356,3 +356,4 @@
   </div>
 </body>
 </html>
+
