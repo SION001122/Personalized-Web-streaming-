@@ -323,7 +323,7 @@
         const candidates = [durServer, durClient].filter(v => v && !isNaN(v));
         const dur = candidates.length ? Math.min(...candidates) + 0.5 : 0;
 
-        if (dur - audioElement.currentTime <= 1.5) { nextTrack(); }
+        if (dur - audioElement.currentTime <= 0.1) { nextTrack(); }
       });
     };
 </script>
@@ -356,4 +356,5 @@
   </div>
 </body>
 </html>
+
 
